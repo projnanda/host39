@@ -1,0 +1,36 @@
+# Environment
+.env
+.env.prod
+.env.local
+
+# Dependencies
+node_modules/
+server/node_modules/
+web/node_modules/
+
+# Build outputs
+server/dist/
+web/.next/
+web/out/
+
+# TypeScript
+*.tsbuildinfo
+server/tsconfig.tsbuildinfo
+web/tsconfig.tsbuildinfo
+
+# Docker volumes (if bind-mounted locally)
+postgres-data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

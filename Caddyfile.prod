@@ -1,0 +1,30 @@
+agentcards.host39.org {
+  # API, auth, and card management routes → backend
+  handle /api/* {
+    reverse_proxy server:3010
+  }
+  handle /auth/* {
+    reverse_proxy server:3010
+  }
+  handle /cards/* {
+    reverse_proxy server:3010
+  }
+  handle /.well-known/* {
+    reverse_proxy server:3010
+  }
+
+  # Personal agent card routes → backend
+  handle /personal/* {
+    reverse_proxy server:3010
+  }
+
+  # Domain-based agent card routes (/:domain/:slug.json) → backend
+  # Everything else → Next.js frontend
+  handle /* {
+    @agentcard path_regexp ^/[a-z0-9][a-z0-9.-]*/[a-z0-9][a-z0-9-]*\.json$
+    handle @agentcard {
+      reverse_proxy server:3010
+    }
+    reverse_proxy web:3002
+  }
+}
