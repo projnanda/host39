@@ -36,6 +36,10 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       FRONTEND_URL: ${FRONTEND_URL}
+      # Host that actually serves public cards (agentcards.host39.org).
+      # Baked into /.well-known/ai-catalog.json entries and each card's
+      # _meta.publicUrl, so it must NOT default to localhost in production.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
     depends_on:
       db:
         condition: service_healthy
@@ -47,6 +51,7 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_HOST39_API_URL: ${NEXT_PUBLIC_HOST39_API_URL}
+        NEXT_PUBLIC_HOST39_CARDS_URL: ${NEXT_PUBLIC_HOST39_CARDS_URL}
     environment:
       PORT: 3002
     depends_on:

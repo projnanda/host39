@@ -152,13 +152,24 @@ export async function deleteCard(id: string): Promise<void> {
 }
 
 // URL generation helpers (client-side preview)
+//
+// Public agent cards are served from the card-serving host (in production,
+// `agentcards.host39.org`), which is a *different* origin from the API/dashboard
+// host (`host39.org`). Use NEXT_PUBLIC_HOST39_CARDS_URL so the URL we show and
+// copy actually resolves. Fall back to the API URL for local dev, where the API
+// serves cards on the same origin.
+const CARDS_BASE =
+  process.env.NEXT_PUBLIC_HOST39_CARDS_URL ??
+  process.env.NEXT_PUBLIC_HOST39_API_URL ??
+  "http://localhost:3010";
+
 export function getPublicUrl(
   identityType: "domain" | "email",
   domainOrEmail: string,
   slug: string,
   baseUrl?: string
 ): string {
-  const base = baseUrl ?? (process.env.NEXT_PUBLIC_HOST39_API_URL ?? "http://localhost:3010");
+  const base = baseUrl ?? CARDS_BASE;
   if (identityType === "domain") {
     return `${base}/${domainOrEmail}/${slug}.json`;
   }

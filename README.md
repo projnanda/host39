@@ -33,10 +33,13 @@ docker compose up --build
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `JWT_SECRET` | yes (prod) | dev default | Must be ≥ 32 chars in production |
+| `DATABASE_URL` | yes | (none) | Postgres connection string. Set by docker-compose; required explicitly when running the server without Docker. |
+| `JWT_SECRET` | yes (prod) | dev default | Must be at least 16 chars in production |
 | `JWT_EXPIRES_IN` | no | `7d` | Token lifetime |
 | `FRONTEND_URL` | no | `http://localhost:3002` | Used for CORS and redirects |
+| `PUBLIC_BASE_URL` | no | `http://localhost:3010` | Host that serves public cards. Baked into `/.well-known/ai-catalog.json` and each card's `_meta.publicUrl`. Set to `https://agentcards.host39.org` in production. |
 | `NEXT_PUBLIC_HOST39_API_URL` | no | `http://localhost:3010` | API base URL baked into the frontend |
+| `NEXT_PUBLIC_HOST39_CARDS_URL` | no | falls back to API URL | Card-serving host shown/copied in the dashboard. Set to `https://agentcards.host39.org` in production. |
 | `POSTGRES_PASSWORD` | yes | `host39-local` in dev | Postgres password |
 | `PORT` | no | `3010` | API server port |
 
