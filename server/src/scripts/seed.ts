@@ -21,7 +21,7 @@ async function seed() {
   await sql`TRUNCATE agent_cards, users RESTART IDENTITY CASCADE`;
 
   // ── SMB 1: Moon Bakery ────────────────────────────────────────────────────
-  const [mb] = await sql`
+  const [mb] = await sql<[{id: string}]>`
     INSERT INTO users (email, handle, display_name, password_hash, identity_type, domain)
     VALUES ('admin@moonbakery.com', 'moonbakery', 'Moon Bakery', ${hash}, 'domain', 'moonbakery.com')
     RETURNING id
@@ -45,7 +45,7 @@ async function seed() {
   `;
 
   // ── SMB 2: TechCorp ───────────────────────────────────────────────────────
-  const [tc] = await sql`
+  const [tc] = await sql<[{id: string}]>`
     INSERT INTO users (email, handle, display_name, password_hash, identity_type, domain)
     VALUES ('admin@techcorp.io', 'techcorp', 'TechCorp', ${hash}, 'domain', 'techcorp.io')
     RETURNING id
@@ -70,7 +70,7 @@ async function seed() {
   `;
 
   // ── Personal 1: Ankit ─────────────────────────────────────────────────────
-  const [an] = await sql`
+  const [an] = await sql<[{id: string}]>`
     INSERT INTO users (email, handle, display_name, password_hash, identity_type)
     VALUES ('ankit@test.com', 'ankit', 'Ankit', ${hash}, 'email')
     RETURNING id
@@ -91,7 +91,7 @@ async function seed() {
   `;
 
   // ── Personal 2: Jane ──────────────────────────────────────────────────────
-  const [jn] = await sql`
+  const [jn] = await sql<[{id: string}]>`
     INSERT INTO users (email, handle, display_name, password_hash, identity_type)
     VALUES ('jane@test.com', 'jane', 'Jane', ${hash}, 'email')
     RETURNING id
