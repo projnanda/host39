@@ -200,8 +200,8 @@ export default function EditCardPage() {
       description="Update your agent card details."
     >
       <div className="max-w-lg space-y-6">
-        {/* Public URL banner */}
-        {isPublic ? (
+        {/* Public URL banner — only when the card is actually served publicly */}
+        {isPublic && status === "active" ? (
           <div className="rounded-3xl border border-black/10 bg-white p-5 shadow-sm">
             <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
               Public URL
@@ -228,8 +228,8 @@ export default function EditCardPage() {
           </div>
         ) : (
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">Private</p>
-            <p className="mt-1 text-sm text-amber-700">This card is not publicly accessible. Enable &ldquo;Public&rdquo; below to publish it.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">Not public</p>
+            <p className="mt-1 text-sm text-amber-700">This card is not publicly served. Set it to &ldquo;Public&rdquo; and &ldquo;Active&rdquo; below to publish it.</p>
           </div>
         )}
 

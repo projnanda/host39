@@ -165,18 +165,24 @@ export default function DashboardPage() {
                           <p className="mt-1 text-sm text-slate-500 line-clamp-1">{card.description}</p>
                         )}
 
-                        {/* Public URL */}
-                        <div className="mt-3 flex items-center gap-2">
-                          <code className="min-w-0 flex-1 truncate rounded-lg border border-black/5 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600">
-                            {publicUrl}
-                          </code>
-                          <button
-                            onClick={() => copyUrl(publicUrl, card.id)}
-                            className="shrink-0 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
-                          >
-                            {copiedId === card.id ? "Copied!" : "Copy"}
-                          </button>
-                        </div>
+                        {/* Public URL — only shown when the card is actually served publicly */}
+                        {card.is_public && card.status === "active" ? (
+                          <div className="mt-3 flex items-center gap-2">
+                            <code className="min-w-0 flex-1 truncate rounded-lg border border-black/5 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600">
+                              {publicUrl}
+                            </code>
+                            <button
+                              onClick={() => copyUrl(publicUrl, card.id)}
+                              className="shrink-0 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                            >
+                              {copiedId === card.id ? "Copied!" : "Copy"}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="mt-3 text-xs text-slate-400">
+                            Not publicly served — set Public and Active to publish.
+                          </p>
+                        )}
                       </div>
 
                       <Link

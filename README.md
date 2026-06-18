@@ -8,7 +8,7 @@ host39 lets individuals and businesses register agent identities and publish A2A
 
 ```
 GET /moonbakery.com/orders.json         # domain identity
-GET /personal/john@email.com/card.json  # personal identity
+GET /personal/john/card.json            # personal identity
 GET /.well-known/ai-catalog.json        # all active cards
 ```
 
@@ -66,7 +66,7 @@ docker compose up --build
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/personal/:email/:slug.json` | Fetch a personal agent card |
+| `GET` | `/personal/:handle/:slug.json` | Fetch a personal agent card |
 | `GET` | `/:domain/:slug.json` | Fetch a domain agent card |
 | `GET` | `/.well-known/ai-catalog.json` | All active cards |
 | `GET` | `/health` | Liveness probe |
@@ -75,7 +75,7 @@ docker compose up --build
 
 ## Identity types
 
-**Personal (email)** — for individuals. Cards are served under `/personal/<email>/`.
+**Personal (email)** — for individuals. Cards are served under `/personal/<handle>/`, where `<handle>` is the username chosen at registration.
 
 **Domain (business)** — for orgs with a domain. Cards are served under `/<domain>/`. Only one user can register a given domain.
 

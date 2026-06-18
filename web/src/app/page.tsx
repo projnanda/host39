@@ -115,10 +115,11 @@ export default function HomePage() {
           <div className="rounded-3xl border border-black/10 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Personal / Email</p>
             <code className="mt-3 block rounded-xl border border-black/5 bg-slate-50 p-4 font-mono text-sm text-slate-800">
-              /personal/john@hotmail.com/card.json
+              /personal/john/card.json
             </code>
             <p className="mt-3 text-sm text-slate-600">
-              Register with your email for personal agent cards — great for developers and individuals.
+              Register with your email and pick a username — your personal cards live at a clean
+              handle-based URL. Great for developers and individuals.
             </p>
           </div>
         </div>
