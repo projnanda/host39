@@ -1,10 +1,11 @@
-import { readdirSync } from 'node:fs';
+import { readdirSync, existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import postgres from 'postgres';
 import { buildConfig } from '../config.js';
 
 /**
- * Applies pending *.sql files from db/migrations in lexical order.
+ * Applies pending *.sql files from the migrations directory in lexical order.
  * Tracks applied files in schema_migrations. Idempotent across runs.
  * Each file runs in its own transaction.
  */
@@ -20,7 +21,14 @@ async function migrate(): Promise<void> {
       )
     `;
 
-    const dir = path.resolve(process.cwd(), 'db/migrations');
+    // Prefer migrations sitting next to this module (tsx running
+    // src/db/migrate.ts locally finds src/db/migrations). Fall back to the
+    // cwd-relative layout used by the Docker image, where the SQL files are
+    // copied to /app/db/migrations and the process runs from /app.
+    const moduleMigrations = path.join(path.dirname(fileURLToPath(import.meta.url)), 'migrations');
+    const dir = existsSync(moduleMigrations)
+      ? moduleMigrations
+      : path.resolve(process.cwd(), 'db/migrations');
     const files = readdirSync(dir)
       .filter((f) => f.endsWith('.sql'))
       .sort();

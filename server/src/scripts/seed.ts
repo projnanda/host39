@@ -3,7 +3,7 @@
  * Wipes users + agent_cards and inserts 2 SMB + 2 personal test accounts.
  *
  * Usage:
- *   DATABASE_URL=postgresql://host39:host39-local@localhost:5433/host39 npx tsx src/scripts/seed.ts
+ *   DATABASE_URL=postgresql://host39:host39-local@localhost:5434/host39 npx tsx src/scripts/seed.ts
  */
 
 import bcrypt from 'bcryptjs';
