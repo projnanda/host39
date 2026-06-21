@@ -28,7 +28,7 @@ async function parseApiResponse<T>(res: Response): Promise<T> {
     const errorCode = typeof obj["error"] === "string" ? obj["error"] : null;
     const detail = typeof obj["detail"] === "string" ? obj["detail"] : null;
     const message =
-      detail && errorCode ? `${errorCode} — ${detail}` :
+      detail && errorCode ? `${errorCode} - ${detail}` :
       detail ?? errorCode ??
       (typeof obj["message"] === "string" ? obj["message"] : `Request failed with status ${res.status}`);
     throw new ApiError(message, res.status, data);
@@ -115,6 +115,41 @@ export interface AgentCard {
 
 export async function listCards(): Promise<AgentCard[]> {
   return request<AgentCard[]>("/cards");
+}
+
+// Public catalog (no auth). Fetches the aggregate ai-catalog from the
+// cards host. Do NOT use request() - that injects Authorization and
+// targets NEXT_PUBLIC_HOST39_API_URL; the public catalog lives on
+// NEXT_PUBLIC_HOST39_CARDS_URL.
+export interface PublicCatalogEntry {
+  identifier: string;
+  displayName: string;
+  mediaType: string;
+  url: string;
+  description: string | null;
+  tags: string[];
+}
+
+export interface PublicCatalogResponse {
+  specVersion: string;
+  entries: PublicCatalogEntry[];
+}
+
+export async function listPublicCards(): Promise<PublicCatalogEntry[]> {
+  const base =
+    process.env.NEXT_PUBLIC_HOST39_CARDS_URL ??
+    process.env.NEXT_PUBLIC_HOST39_API_URL ??
+    "";
+  const url = `${base}/.well-known/ai-catalog.json`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new ApiError(
+      `Catalog fetch failed with status ${res.status}`,
+      res.status,
+    );
+  }
+  const data = (await res.json()) as PublicCatalogResponse;
+  return Array.isArray(data?.entries) ? data.entries : [];
 }
 
 export async function getCard(id: string): Promise<AgentCard> {

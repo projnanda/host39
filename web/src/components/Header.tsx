@@ -32,93 +32,115 @@ export function Header() {
   }
 
   const navLinks = [
-    { href: "/", label: "Home" },
+    { href: "/", label: "Explore" },
+    { href: "/about", label: "About" },
     { href: "/dashboard", label: "Dashboard" },
   ];
 
+  const initial = email ? email.charAt(0).toUpperCase() : "?";
+
   return (
-    <header className="sticky top-0 z-50 border-b border-black/5 bg-[color:var(--page-bg)]/90 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <Link href="/" className="flex min-w-0 items-center gap-3">
-          <span className="inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap rounded-sm border border-black/10 bg-white px-3 text-sm font-semibold tracking-[0.28em] text-slate-900 shadow-sm">
-            H39
-          </span>
-          <span className="hidden truncate font-serif text-lg italic tracking-tight text-slate-950 sm:block">
-            host39
-          </span>
-        </Link>
-
-        <nav className="ml-auto hidden items-center gap-7 text-[0.72rem] uppercase tracking-[0.22em] text-slate-600 lg:flex">
-          {navLinks.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="transition-colors hover:text-slate-950"
-            >
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="hidden lg:block">
-          {email ? (
-            <div className="flex items-center gap-3">
-              <Link
-                href="/dashboard"
-                className="text-[0.72rem] uppercase tracking-[0.22em] text-slate-600 transition-colors hover:text-slate-950"
-              >
-                {email}
-              </Link>
-              <button
-                onClick={signOut}
-                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[0.72rem] uppercase tracking-[0.22em] text-slate-500 hover:bg-slate-50"
-              >
-                Sign out
-              </button>
+    <header className="bg-surface-light border-b border-line sticky top-0 z-30">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+        <div className="flex items-center justify-between gap-4">
+          {/* LEFT: brand */}
+          <Link
+            href="/"
+            className="flex items-center gap-3 min-w-0 rounded-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          >
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-card bg-brand-800 text-white text-xs font-semibold tracking-wide">
+              H39
+            </span>
+            <span className="hidden sm:block h-6 border-l border-line" />
+            <div className="hidden sm:flex flex-col leading-tight min-w-0">
+              <span className="font-semibold text-ink-strong truncate">host39</span>
+              <span className="text-xs text-ink-weak truncate">A2A agent card hosting</span>
             </div>
-          ) : (
-            <Link
-              href="/login"
-              className="rounded-full border border-black/10 bg-white px-4 py-2 text-[0.72rem] font-medium uppercase tracking-[0.22em] text-slate-700 shadow-sm transition hover:bg-slate-50"
-            >
-              Sign in
-            </Link>
-          )}
-        </div>
+          </Link>
 
-        <details ref={detailsRef} className="relative ml-auto lg:hidden">
-          <summary className="cursor-pointer list-none border border-black/10 bg-white px-4 py-2 text-xs uppercase tracking-[0.2em] text-slate-700 shadow-sm">
-            Menu
-          </summary>
-          <div className="absolute right-0 mt-2 w-56 rounded-2xl border border-black/10 bg-white p-2 shadow-lg">
-            {navLinks.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={closeMobileMenu}
-                className="block rounded-xl px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-950"
-              >
-                {item.label}
-              </Link>
-            ))}
-            {email ? (
-              <button
-                onClick={() => { closeMobileMenu(); signOut(); }}
-                className="block w-full rounded-xl px-3 py-2 text-left text-sm text-slate-500 hover:bg-slate-50"
-              >
-                Sign out ({email})
-              </button>
-            ) : (
-              <Link
-                href="/login"
-                onClick={closeMobileMenu}
-                className="block rounded-xl px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              >
-                Sign in
-              </Link>
-            )}
+          {/* RIGHT: nav + counter + auth */}
+          <div className="flex items-center gap-6">
+            <nav className="hidden items-center gap-6 lg:flex">
+              {navLinks.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="text-sm font-medium text-ink-medium hover:text-brand-600"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="hidden md:flex flex-col items-end leading-tight">
+              <span className="text-base font-bold text-ink-strong">9 + hosted cards indexed</span>
+              <span className="text-xs text-ink-weak">Indexed</span>
+            </div>
+
+            <div className="hidden lg:block">
+              {email ? (
+                <div className="flex items-center gap-3">
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-brand-200 text-xs font-semibold text-brand-800">
+                    {initial}
+                  </span>
+                  <Link
+                    href="/dashboard"
+                    className="max-w-[180px] truncate text-sm text-ink hover:text-brand-600 transition-colors"
+                  >
+                    {email}
+                  </Link>
+                  <button
+                    onClick={signOut}
+                    className="text-xs text-ink-weak hover:text-ink transition-colors"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  href="/login"
+                  className="inline-flex h-9 items-center rounded-control bg-brand-500 px-4 text-sm font-medium text-white hover:bg-brand-600 transition"
+                >
+                  Sign in
+                </Link>
+              )}
+            </div>
+
+            <details ref={detailsRef} className="relative lg:hidden">
+              <summary className="cursor-pointer list-none rounded-control border-2 border-line bg-surface-light px-3 py-1.5 text-xs font-medium text-ink hover:border-line-strong transition">
+                Menu
+              </summary>
+              <div className="absolute right-0 mt-2 w-56 rounded-card border border-line bg-surface-light p-2 shadow-card">
+                {navLinks.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMobileMenu}
+                    className="block rounded-control px-3 py-2 text-sm text-ink hover:bg-surface-strong hover:text-brand-600 transition-colors"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                {email ? (
+                  <button
+                    onClick={() => { closeMobileMenu(); signOut(); }}
+                    className="block w-full rounded-control px-3 py-2 text-left text-sm text-ink-weak hover:bg-surface-strong hover:text-ink"
+                  >
+                    Sign out ({email})
+                  </button>
+                ) : (
+                  <Link
+                    href="/login"
+                    onClick={closeMobileMenu}
+                    className="block rounded-control px-3 py-2 text-sm text-ink hover:bg-surface-strong hover:text-brand-600"
+                  >
+                    Sign in
+                  </Link>
+                )}
+              </div>
+            </details>
           </div>
-        </details>
+        </div>
       </div>
     </header>
   );

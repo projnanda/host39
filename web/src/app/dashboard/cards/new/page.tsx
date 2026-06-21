@@ -26,6 +26,26 @@ interface FormState {
   is_public: boolean;
 }
 
+// ── Shared primitives (outshift utility classes) ──────────────────────────────
+
+const infoCardClass =
+  "bg-surface-light rounded-card border border-line p-6 shadow-card";
+
+const inputClass =
+  "w-full h-10 rounded-control border-2 border-line bg-surface-light px-3 text-sm text-ink placeholder:text-ink-weak focus:outline-none focus:border-brand-500 transition-colors";
+
+const textareaClass =
+  "w-full rounded-control border-2 border-line bg-surface-light px-3 py-2 text-sm text-ink placeholder:text-ink-weak focus:outline-none focus:border-brand-500 transition-colors resize-none";
+
+const primaryBtnClass =
+  "inline-flex items-center justify-center h-9 rounded-control bg-brand-500 px-4 text-sm font-medium text-white hover:bg-brand-600 transition disabled:opacity-60";
+
+const secondaryBtnClass =
+  "inline-flex items-center justify-center h-9 rounded-control border-2 border-line bg-surface-light px-3 text-sm font-medium text-ink hover:border-line-strong transition";
+
+const microLabelClass =
+  "mb-1 block text-xs font-bold uppercase tracking-wide text-ink-weak";
+
 // ── Defaults per identity type ────────────────────────────────────────────────
 
 function defaultsForMe(me: Me): Partial<FormState> {
@@ -50,15 +70,15 @@ function ctx(me: Me | null) {
     isSmb,
     slugPlaceholder:    isSmb ? "orders"                          : "agent",
     slugHint:           isSmb
-      ? 'Short name for this specific agent — e.g. "orders", "support", "tracking".'
-      : 'A simple identifier for your card — e.g. "agent", "assistant".',
+      ? 'Short name for this specific agent - e.g. "orders", "support", "tracking".'
+      : 'A simple identifier for your card - e.g. "agent", "assistant".',
     runtimePlaceholder: isSmb ? "https://my-agent.aws.example.com" : "https://my-agent.railway.app",
     runtimeHint:        isSmb
       ? "The A2A endpoint where your business agent runs (AWS, Azure, GCP, etc.)."
       : "Where your personal agent is hosted (Railway, Vercel, Render, etc.). Optional.",
     providerHint:       isSmb
-      ? "Your company name and website — pre-filled from your registered domain."
-      : "Optional — leave blank if you are the provider.",
+      ? "Your company name and website - pre-filled from your registered domain."
+      : "Optional - leave blank if you are the provider.",
     authHint:           isSmb
       ? "How callers must authenticate to use this agent."
       : "Personal agents usually require user consent or no auth for public actions.",
@@ -79,27 +99,27 @@ function Field({
   mono?: boolean; textarea?: boolean; optional?: boolean;
 }) {
   const base = cn(
-    "w-full rounded-2xl border px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-300 bg-white transition",
+    textarea ? textareaClass : inputClass,
     mono && "font-mono",
-    error ? "border-rose-300 bg-rose-50/40" : "border-black/10",
+    error && "border-[color:var(--color-danger)] focus:border-[color:var(--color-danger)]",
   );
   return (
     <label className="block">
-      <span className="mb-1 block text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+      <span className={microLabelClass}>
         {label}
-        {optional && <span className="ml-1 font-normal normal-case tracking-normal text-slate-400">(optional)</span>}
+        {optional && <span className="ml-1 font-normal normal-case tracking-normal text-ink-weak">(optional)</span>}
       </span>
       {textarea ? (
         <textarea value={value} onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder} rows={4} className={cn(base, "resize-none")} />
+          placeholder={placeholder} rows={4} className={base} />
       ) : (
         <input type={type} value={value} onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder} className={base} />
       )}
       {error
-        ? <p className="mt-1 text-[11px] text-rose-500">{error}</p>
+        ? <p className="mt-1 text-[11px] text-[color:var(--color-danger)]">{error}</p>
         : hint
-          ? <p className="mt-1 text-[11px] text-slate-400">{hint}</p>
+          ? <p className="mt-1 text-[11px] text-ink-weak">{hint}</p>
           : null}
     </label>
   );
@@ -115,27 +135,33 @@ function IdentityBadge({ me, slug }: { me: Me; slug: string }) {
 
   return (
     <div className={cn(
-      "rounded-2xl border px-4 py-3 flex items-start gap-3",
+      "rounded-card border px-4 py-3 flex items-start gap-3",
       isSmb
-        ? "border-indigo-100 bg-indigo-50"
-        : "border-violet-100 bg-violet-50",
+        ? "border-line-strong bg-brand-200"
+        : "border-line-strong bg-accent-teal",
     )}>
       <div className={cn(
-        "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-        isSmb ? "bg-indigo-600 text-white" : "bg-violet-600 text-white",
+        "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white",
+        isSmb ? "bg-brand-500" : "bg-accent-teal-ink",
       )}>
         {isSmb ? "B" : "P"}
       </div>
       <div className="min-w-0">
         <p className={cn(
-          "text-xs font-semibold",
-          isSmb ? "text-indigo-800" : "text-violet-800",
+          "text-[10px] font-bold uppercase tracking-wide",
+          isSmb ? "text-brand-800" : "text-accent-teal-ink",
         )}>
-          {isSmb ? `Business · ${me.domain}` : `Personal · @${me.handle}`}
+          {isSmb ? "Business" : "Personal"}
+        </p>
+        <p className={cn(
+          "text-xs font-semibold",
+          isSmb ? "text-brand-800" : "text-accent-teal-ink",
+        )}>
+          {isSmb ? me.domain : `@${me.handle}`}
         </p>
         <p className={cn(
           "mt-0.5 break-all font-mono text-[11px]",
-          isSmb ? "text-indigo-600" : "text-violet-600",
+          isSmb ? "text-brand-800/80" : "text-accent-teal-ink/80",
         )}>
           {url}
         </p>
@@ -156,19 +182,22 @@ function StepIndicator({ current }: { current: Step }) {
           <div className={cn(
             "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition",
             s === current
-              ? "bg-slate-950 text-white shadow-sm"
+              ? "bg-brand-500 text-white"
               : s < current
-                ? "bg-emerald-100 text-emerald-700"
-                : "border border-black/10 bg-white text-slate-400",
+                ? "bg-accent-teal text-accent-teal-ink"
+                : "border border-line bg-surface-light text-ink-weak",
           )}>
             {s < current ? "✓" : s}
           </div>
           {i < 3 && (
-            <div className={cn("h-px w-8 transition", s < current ? "bg-emerald-300" : "bg-black/10")} />
+            <div className={cn(
+              "h-px w-8 transition",
+              s < current ? "bg-accent-teal-ink" : "bg-line"
+            )} />
           )}
         </div>
       ))}
-      <span className="ml-2 text-xs font-medium text-slate-500">
+      <span className="ml-2 text-xs font-medium text-ink-medium">
         {STEP_LABELS[(current - 1)]}
       </span>
     </div>
@@ -300,10 +329,10 @@ export default function NewCardPage() {
     >
       <div className="max-w-lg space-y-5">
 
-        {/* Identity badge — always visible */}
+        {/* Identity badge - always visible */}
         {me && <IdentityBadge me={me} slug={form.slug} />}
 
-        <div className="rounded-3xl border border-black/10 bg-white p-6 shadow-sm">
+        <div className={infoCardClass}>
           <StepIndicator current={step} />
 
           {/* ── Step 1: Basic ── */}
@@ -389,50 +418,53 @@ export default function NewCardPage() {
           {step === 3 && (
             <div className="space-y-5">
               <div>
-                <span className="mb-1 block text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                <span className={microLabelClass}>
                   Capabilities
                 </span>
-                <div className="space-y-2 rounded-2xl border border-black/10 p-4">
+                <div className="space-y-2 rounded-control border border-line p-4">
                   <label className="flex cursor-pointer items-center gap-3">
                     <input type="checkbox" checked={form.streaming}
-                      onChange={(e) => set("streaming", e.target.checked)} className="accent-slate-950" />
+                      onChange={(e) => set("streaming", e.target.checked)}
+                      className="rounded border-line-strong text-brand-500 focus:ring-brand-500" />
                     <div>
-                      <span className="text-sm text-slate-700">Streaming</span>
-                      <p className="text-[11px] text-slate-400">Agent streams responses incrementally.</p>
+                      <span className="text-sm text-ink">Streaming</span>
+                      <p className="text-[11px] text-ink-weak">Agent streams responses incrementally.</p>
                     </div>
                   </label>
                   <label className="flex cursor-pointer items-center gap-3">
                     <input type="checkbox" checked={form.pushNotifications}
-                      onChange={(e) => set("pushNotifications", e.target.checked)} className="accent-slate-950" />
+                      onChange={(e) => set("pushNotifications", e.target.checked)}
+                      className="rounded border-line-strong text-brand-500 focus:ring-brand-500" />
                     <div>
-                      <span className="text-sm text-slate-700">Push notifications</span>
-                      <p className="text-[11px] text-slate-400">Agent can push updates to callers.</p>
+                      <span className="text-sm text-ink">Push notifications</span>
+                      <p className="text-[11px] text-ink-weak">Agent can push updates to callers.</p>
                     </div>
                   </label>
                   <label className="flex cursor-pointer items-center gap-3">
                     <input type="checkbox" checked={form.is_public}
-                      onChange={(e) => set("is_public", e.target.checked)} className="accent-slate-950" />
+                      onChange={(e) => set("is_public", e.target.checked)}
+                      className="rounded border-line-strong text-brand-500 focus:ring-brand-500" />
                     <div>
-                      <span className="text-sm text-slate-700">Public</span>
-                      <p className="text-[11px] text-slate-400">Accessible at the public URL. Uncheck to keep private.</p>
+                      <span className="text-sm text-ink">Public</span>
+                      <p className="text-[11px] text-ink-weak">Accessible at the public URL. Uncheck to keep private.</p>
                     </div>
                   </label>
                 </div>
               </div>
 
               <div>
-                <span className="mb-1 block text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                <span className={microLabelClass}>
                   Authentication scheme
                 </span>
                 <select value={form.authScheme} onChange={(e) => set("authScheme", e.target.value)}
-                  className="w-full rounded-2xl border border-black/10 bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-300">
-                  <option value="none">None — public access</option>
+                  className={inputClass}>
+                  <option value="none">None - public access</option>
                   <option value="Bearer">Bearer token</option>
                   <option value="OAuth2">OAuth 2.0</option>
                   <option value="ApiKey">API key</option>
                   {!c.isSmb && <option value="user_consent">User consent required</option>}
                 </select>
-                <p className="mt-1 text-[11px] text-slate-400">{c.authHint}</p>
+                <p className="mt-1 text-[11px] text-ink-weak">{c.authHint}</p>
               </div>
 
               <Field
@@ -453,18 +485,20 @@ export default function NewCardPage() {
             <div className="space-y-4">
               {/* URL highlight */}
               <div className={cn(
-                "rounded-2xl border p-4",
-                c.isSmb ? "border-indigo-100 bg-indigo-50" : "border-violet-100 bg-violet-50",
+                "rounded-card border p-4",
+                c.isSmb
+                  ? "border-line-strong bg-brand-200"
+                  : "border-line-strong bg-accent-teal",
               )}>
                 <p className={cn(
-                  "mb-1 text-[10px] font-semibold uppercase tracking-[0.18em]",
-                  c.isSmb ? "text-indigo-500" : "text-violet-500",
+                  "mb-1 text-[10px] font-bold uppercase tracking-wide",
+                  c.isSmb ? "text-brand-800" : "text-accent-teal-ink",
                 )}>
                   Public URL
                 </p>
                 <code className={cn(
                   "break-all font-mono text-sm",
-                  c.isSmb ? "text-indigo-800" : "text-violet-800",
+                  c.isSmb ? "text-brand-800" : "text-accent-teal-ink",
                 )}>
                   {getPublicUrl(
                     me.identity_type,
@@ -475,14 +509,14 @@ export default function NewCardPage() {
                 </code>
               </div>
 
-              <dl className="divide-y divide-black/5">
+              <dl className="divide-y divide-line">
                 {[
                   { label: "Slug",               value: form.slug,                           mono: true  },
                   { label: "Display name",        value: form.display_name,                   mono: false },
-                  { label: "Description",         value: form.description || "—",             mono: false },
-                  { label: "Runtime URL",         value: form.runtime_url || "—",             mono: true  },
-                  { label: "Provider",            value: form.provider_name || "—",           mono: false },
-                  { label: "Provider URL",        value: form.provider_url || "—",            mono: true  },
+                  { label: "Description",         value: form.description || "-",             mono: false },
+                  { label: "Runtime URL",         value: form.runtime_url || "-",             mono: true  },
+                  { label: "Provider",            value: form.provider_name || "-",           mono: false },
+                  { label: "Provider URL",        value: form.provider_url || "-",            mono: true  },
                   { label: "Version",             value: form.version,                        mono: true  },
                   { label: "Streaming",           value: form.streaming ? "Yes" : "No",       mono: false },
                   { label: "Push notifications",  value: form.pushNotifications ? "Yes" : "No", mono: false },
@@ -490,16 +524,16 @@ export default function NewCardPage() {
                   { label: "Visibility",          value: form.is_public ? "Public" : "Private", mono: false },
                 ].map(({ label, value, mono }) => (
                   <div key={label} className="flex items-baseline justify-between gap-4 py-2.5">
-                    <dt className="shrink-0 text-xs text-slate-400">{label}</dt>
-                    <dd className={cn("text-right text-sm text-slate-800", mono && "font-mono")}>{value}</dd>
+                    <dt className="shrink-0 text-xs text-ink-weak">{label}</dt>
+                    <dd className={cn("text-right text-sm text-ink", mono && "font-mono")}>{value}</dd>
                   </div>
                 ))}
               </dl>
 
               {form.skillsJson.trim() && (
-                <div className="rounded-2xl border border-black/5 bg-slate-50 p-3">
-                  <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Skills</p>
-                  <pre className="overflow-x-auto font-mono text-xs text-slate-700">{form.skillsJson}</pre>
+                <div className="rounded-control border border-line bg-surface-strong p-3">
+                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-ink-weak">Skills</p>
+                  <pre className="overflow-x-auto font-mono text-xs text-ink">{form.skillsJson}</pre>
                 </div>
               )}
             </div>
@@ -507,7 +541,7 @@ export default function NewCardPage() {
 
           {/* Error */}
           {error && (
-            <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm text-rose-700">
+            <p className="mt-4 rounded-control border border-[color:var(--color-danger-soft)] bg-[color:var(--color-danger-soft)] px-4 py-2.5 text-sm text-[color:var(--color-danger)]">
               {error}
             </p>
           )}
@@ -515,8 +549,7 @@ export default function NewCardPage() {
           {/* Navigation */}
           <div className="mt-6 flex items-center justify-between">
             {step > 1 ? (
-              <button onClick={prevStep}
-                className="rounded-2xl border border-black/10 px-5 py-2 text-sm text-slate-600 hover:bg-slate-50">
+              <button onClick={prevStep} className={secondaryBtnClass}>
                 ← Back
               </button>
             ) : (
@@ -524,13 +557,11 @@ export default function NewCardPage() {
             )}
 
             {step < 4 ? (
-              <button onClick={nextStep}
-                className="rounded-2xl bg-slate-950 px-6 py-2 text-sm font-medium text-white hover:bg-slate-800">
+              <button onClick={nextStep} className={primaryBtnClass}>
                 Continue →
               </button>
             ) : (
-              <button onClick={onSubmit} disabled={loading}
-                className="rounded-2xl bg-slate-950 px-6 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60">
+              <button onClick={onSubmit} disabled={loading} className={primaryBtnClass}>
                 {loading ? "Creating…" : "Create card"}
               </button>
             )}

@@ -9,6 +9,14 @@ import type { Me, AgentCard } from "@/lib/api";
 import { clearAuthToken } from "@/lib/auth";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 
+// Static info-card pattern (slightly more padding, no hover transform)
+const infoCardClass =
+  "bg-surface-light rounded-card border border-line p-6 shadow-card";
+
+// Outshift exact card pattern (grid item, interactive)
+const gridCardClass =
+  "bg-surface-light rounded-card border border-line/70 shadow-card p-4 hover:shadow-card-hover hover:border-line-strong transition flex flex-col h-full gap-3";
+
 export default function DashboardPage() {
   useRequireAuth();
   const router = useRouter();
@@ -59,7 +67,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <PageShell title="Dashboard" description="Loading your agent cards…">
-        <div className="rounded-3xl border border-black/10 bg-white p-6 shadow-sm text-sm text-slate-400">
+        <div className={`${infoCardClass} text-sm text-ink-weak`}>
           Loading…
         </div>
       </PageShell>
@@ -69,12 +77,17 @@ export default function DashboardPage() {
   if (error || !me) {
     return (
       <PageShell title="Dashboard" description="">
-        <div className="rounded-3xl border border-rose-200 bg-rose-50 p-4 text-rose-700">
+        <div className="rounded-card border border-[color:var(--color-danger-soft)] bg-[color:var(--color-danger-soft)] p-4 text-[color:var(--color-danger)]">
           {error ?? "Something went wrong."}
         </div>
       </PageShell>
     );
   }
+
+  const isDomain = me.identity_type === "domain";
+  const identityPillClass = isDomain
+    ? "bg-brand-200 text-brand-800"
+    : "bg-accent-teal text-accent-teal-ink";
 
   return (
     <PageShell
@@ -83,22 +96,22 @@ export default function DashboardPage() {
     >
       <div className="space-y-6">
         {/* Profile card */}
-        <div className="flex items-center justify-between rounded-3xl border border-black/10 bg-white p-5 shadow-sm">
+        <div className={`${infoCardClass} flex items-center justify-between`}>
           <div>
-            <p className="font-semibold text-slate-950">{me.display_name ?? me.email}</p>
-            <p className="text-sm text-slate-500">{me.email}</p>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="rounded-full border border-black/10 bg-slate-50 px-2.5 py-0.5 font-mono text-xs text-slate-500">
+            <p className="font-semibold text-ink-strong">{me.display_name ?? me.email}</p>
+            <p className="text-sm text-ink-medium">{me.email}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center rounded-full bg-surface-tag px-2.5 py-0.5 font-mono text-xs text-ink">
                 @{me.handle}
               </span>
-              <span className="rounded-full border border-black/10 bg-slate-50 px-2.5 py-0.5 font-mono text-xs text-slate-500">
-                {me.identity_type === "domain" ? `domain: ${me.domain}` : "personal"}
+              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${identityPillClass}`}>
+                {isDomain ? `Business · ${me.domain}` : "Personal"}
               </span>
             </div>
           </div>
           <button
             onClick={signOut}
-            className="rounded-2xl border border-black/10 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center justify-center h-9 rounded-control border-2 border-line bg-surface-light px-3 text-sm font-medium text-ink hover:border-line-strong transition"
           >
             Sign out
           </button>
@@ -107,29 +120,31 @@ export default function DashboardPage() {
         {/* Agent cards */}
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
+            <h2 className="text-xs font-bold uppercase tracking-wide text-ink-weak">
               Agent Cards
             </h2>
             <Link
               href="/dashboard/cards/new"
-              className="rounded-full border border-black/10 bg-white px-4 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center justify-center h-9 rounded-control bg-brand-500 px-4 text-sm font-medium text-white hover:bg-brand-600 transition"
             >
               + New card
             </Link>
           </div>
 
           {cards.length === 0 ? (
-            <div className="rounded-3xl border border-black/10 bg-white p-8 shadow-sm text-center">
-              <p className="text-sm text-slate-400">
-                You have no agent cards yet.{" "}
-                <Link href="/dashboard/cards/new" className="text-slate-700 underline hover:text-slate-950">
-                  Create your first card
-                </Link>
-                .
+            <div className={`${infoCardClass} text-center`}>
+              <p className="text-sm text-ink-medium">
+                You have no agent cards yet.
               </p>
+              <Link
+                href="/dashboard/cards/new"
+                className="mt-4 inline-flex items-center justify-center h-9 rounded-control bg-brand-500 px-4 text-sm font-medium text-white hover:bg-brand-600 transition"
+              >
+                Create your first card
+              </Link>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {cards.map((card) => {
                 const publicUrl = getPublicUrl(
                   me.identity_type,
@@ -138,55 +153,50 @@ export default function DashboardPage() {
                   me.handle
                 );
 
+                const statusClass =
+                  card.status === "active"
+                    ? "bg-accent-teal text-accent-teal-ink"
+                    : "bg-surface-tag text-ink-weak";
+
                 return (
-                  <div
-                    key={card.id}
-                    className="rounded-3xl border border-black/10 bg-white p-5 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-slate-950">{card.display_name}</p>
-                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] ${
-                            card.status === "active"
-                              ? "border border-emerald-200 bg-emerald-50 text-emerald-600"
-                              : "border border-slate-200 bg-slate-50 text-slate-500"
-                          }`}>
-                            {card.status}
-                          </span>
-                          {!card.is_public && (
-                            <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-amber-600">
-                              Private
-                            </span>
-                          )}
-                        </div>
-                        <p className="font-mono text-xs text-slate-400">/{card.slug}</p>
-                        {card.description && (
-                          <p className="mt-1 text-sm text-slate-500 line-clamp-1">{card.description}</p>
-                        )}
+                  <article key={card.id} className={gridCardClass}>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold text-ink-strong truncate">{card.display_name}</h3>
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusClass}`}>
+                        {card.status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs text-ink-weak">/{card.slug}</span>
+                      {!card.is_public && (
+                        <span className="inline-flex items-center rounded-full bg-[#fdeccc] text-[#8a5a06] px-2.5 py-0.5 text-xs font-semibold">
+                          Private
+                        </span>
+                      )}
+                    </div>
+                    {card.description && (
+                      <p className="text-sm text-ink line-clamp-2 leading-relaxed">{card.description}</p>
+                    )}
 
-                        {/* Public URL */}
-                        <div className="mt-3 flex items-center gap-2">
-                          <code className="min-w-0 flex-1 truncate rounded-lg border border-black/5 bg-slate-50 px-3 py-1.5 font-mono text-xs text-slate-600">
-                            {publicUrl}
-                          </code>
-                          <button
-                            onClick={() => copyUrl(publicUrl, card.id)}
-                            className="shrink-0 rounded-lg border border-black/10 bg-white px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
-                          >
-                            {copiedId === card.id ? "Copied!" : "Copy"}
-                          </button>
-                        </div>
-                      </div>
-
+                    {/* Public URL */}
+                    <div className="mt-auto flex items-center gap-2">
+                      <code className="min-w-0 flex-1 truncate rounded-control border border-line bg-surface-strong px-3 py-1.5 font-mono text-xs text-ink-medium">
+                        {publicUrl}
+                      </code>
+                      <button
+                        onClick={() => copyUrl(publicUrl, card.id)}
+                        className="shrink-0 inline-flex items-center justify-center h-9 rounded-control border-2 border-line bg-surface-light px-3 text-xs font-medium text-ink hover:border-line-strong transition"
+                      >
+                        {copiedId === card.id ? "Copied!" : "Copy"}
+                      </button>
                       <Link
                         href={`/dashboard/cards/${card.id}`}
-                        className="shrink-0 rounded-xl border border-black/10 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+                        className="shrink-0 inline-flex items-center justify-center h-9 rounded-control border-2 border-line bg-surface-light px-3 text-xs font-medium text-ink hover:border-line-strong transition"
                       >
                         Edit
                       </Link>
                     </div>
-                  </div>
+                  </article>
                 );
               })}
             </div>
