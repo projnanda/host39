@@ -44,8 +44,109 @@ export async function registerPublicRoutes(fastify: FastifyInstance): Promise<vo
   const sql = getSql();
   const config = buildConfig();
 
-  // IMPORTANT: Register /personal/:handle/:slug.json BEFORE /:domain/:slug.json
-  // so Fastify matches the more specific route first.
+  // IMPORTANT: Register /personal/* routes BEFORE /:domain/* routes
+  // so Fastify matches the more specific routes first.
+
+  // GET /personal/:handle/agents/:slug — CatalogEntry for hop 2 (catalog mode)
+  fastify.get<{ Params: { handle: string; slug: string } }>(
+    '/personal/:handle/agents/:slug',
+    {
+      schema: {
+        tags: ['public'],
+        summary: 'Get CatalogEntry for a personal user agent (hop 2 catalog resolution)',
+        params: {
+          type: 'object',
+          properties: {
+            handle: { type: 'string' },
+            slug:   { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { handle, slug } = request.params;
+
+      const [row] = await sql<{ slug: string; displayName: string; description: string | null; email: string; handle: string; identityType: string; domain: string | null }[]>`
+        SELECT ac.slug, ac.display_name, ac.description,
+               u.email, u.handle, u.identity_type, u.domain
+        FROM agent_cards ac
+        JOIN users u ON u.id = ac.user_id
+        WHERE u.handle = ${handle}
+          AND ac.slug = ${slug}
+          AND ac.status = 'active'
+          AND ac.is_public = TRUE
+      `;
+
+      if (!row) {
+        return reply.code(404).send({ error: 'NOT_FOUND', detail: 'agent card not found' });
+      }
+
+      const user = { identityType: row.identityType, domain: row.domain, email: row.email, handle: row.handle } as DbUser;
+      const publicUrl = buildPublicUrl(user, row.slug, config.publicBaseUrl);
+      const identifier = buildIdentifier(user, row.slug);
+
+      reply.header('Content-Type', 'application/json');
+      return reply.send({
+        identifier,
+        displayName: row.displayName,
+        mediaType:   'application/a2a-agent-card+json',
+        url:         publicUrl,
+        description: row.description,
+        tags:        [],
+      });
+    },
+  );
+
+  // GET /:domain/agents/:slug — CatalogEntry for hop 2 (catalog mode)
+  fastify.get<{ Params: { domain: string; slug: string } }>(
+    '/:domain/agents/:slug',
+    {
+      schema: {
+        tags: ['public'],
+        summary: 'Get CatalogEntry for a domain agent (hop 2 catalog resolution)',
+        params: {
+          type: 'object',
+          properties: {
+            domain: { type: 'string' },
+            slug:   { type: 'string' },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { domain, slug } = request.params;
+
+      const [row] = await sql<{ slug: string; displayName: string; description: string | null; email: string; handle: string; identityType: string; domain: string }[]>`
+        SELECT ac.slug, ac.display_name, ac.description,
+               u.email, u.handle, u.identity_type, u.domain
+        FROM agent_cards ac
+        JOIN users u ON u.id = ac.user_id
+        WHERE u.identity_type = 'domain'
+          AND u.domain = ${domain}
+          AND ac.slug = ${slug}
+          AND ac.status = 'active'
+          AND ac.is_public = TRUE
+      `;
+
+      if (!row) {
+        return reply.code(404).send({ error: 'NOT_FOUND', detail: 'agent card not found' });
+      }
+
+      const user = { identityType: row.identityType, domain: row.domain, email: row.email, handle: row.handle } as DbUser;
+      const publicUrl = buildPublicUrl(user, row.slug, config.publicBaseUrl);
+      const identifier = buildIdentifier(user, row.slug);
+
+      reply.header('Content-Type', 'application/json');
+      return reply.send({
+        identifier,
+        displayName: row.displayName,
+        mediaType:   'application/a2a-agent-card+json',
+        url:         publicUrl,
+        description: row.description,
+        tags:        [],
+      });
+    },
+  );
 
   // GET /personal/:handle/:slug.json — personal (email-identity) user card
   fastify.get<{ Params: { handle: string; slug: string } }>(
