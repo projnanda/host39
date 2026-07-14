@@ -46,6 +46,7 @@ export default function EditCardPage() {
   const [skillsJson, setSkillsJson] = useState("");
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [isPublic, setIsPublic] = useState(true);
+  const [monitoringEnabled, setMonitoringEnabled] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +71,7 @@ export default function EditCardPage() {
         setSkillsJson(cardData.skills.length > 0 ? JSON.stringify(cardData.skills, null, 2) : "");
         setStatus(cardData.status);
         setIsPublic(cardData.is_public);
+        setMonitoringEnabled(cardData.monitoring_enabled);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -124,6 +126,7 @@ export default function EditCardPage() {
         provider_url:  providerUrl || undefined,
         status,
         is_public:     isPublic,
+        monitoring_enabled: monitoringEnabled,
       });
       setCard(updated);
       setSuccess("Card updated successfully.");
@@ -230,6 +233,45 @@ export default function EditCardPage() {
           <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-600">Private</p>
             <p className="mt-1 text-sm text-amber-700">This card is not publicly accessible. Enable &ldquo;Public&rdquo; below to publish it.</p>
+          </div>
+        )}
+
+        {/* Reliability monitoring (AgentStatus) */}
+        {card.monitoring_enabled && (
+          <div className="rounded-3xl border border-black/10 bg-white p-5 shadow-sm">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Reliability monitoring
+            </p>
+            {card.reliability ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] ${
+                    card.reliability.verdict === "UP"
+                      ? "border border-emerald-200 bg-emerald-50 text-emerald-600"
+                      : "border border-amber-200 bg-amber-50 text-amber-600"
+                  }`}>
+                    {card.reliability.reliability_label}
+                  </span>
+                  <span className="text-sm text-slate-500">
+                    {card.reliability.uptime_pct}% uptime
+                  </span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={card.reliability.badge_url} alt="Agent status badge" height={20} />
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <a href={card.reliability.report_url} target="_blank" rel="noopener noreferrer"
+                    className="text-slate-700 underline hover:text-slate-950">
+                    View full report
+                  </a>
+                  <a href={card.reliability.claim_url} target="_blank" rel="noopener noreferrer"
+                    className="text-slate-700 underline hover:text-slate-950">
+                    Manage alerts &amp; metrics
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">Pending first probe — check back shortly.</p>
+            )}
           </div>
         )}
 
@@ -355,6 +397,18 @@ export default function EditCardPage() {
                     className="accent-slate-950"
                   />
                   <span className="text-sm text-slate-700">Push notifications</span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={monitoringEnabled}
+                    onChange={(e) => setMonitoringEnabled(e.target.checked)}
+                    className="accent-slate-950"
+                  />
+                  <div>
+                    <span className="text-sm text-slate-700">Agent reliability monitoring</span>
+                    <p className="text-xs text-slate-400">Monitored by AgentStatus — adds an uptime badge and public reliability report.</p>
+                  </div>
                 </label>
               </div>
 

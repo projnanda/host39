@@ -24,6 +24,7 @@ interface FormState {
   authScheme: string;
   skillsJson: string;
   is_public: boolean;
+  monitoringEnabled: boolean;
 }
 
 // ── Defaults per identity type ────────────────────────────────────────────────
@@ -200,6 +201,7 @@ export default function NewCardPage() {
     authScheme: "none",
     skillsJson: "",
     is_public: true,
+    monitoringEnabled: false,
   });
 
   useEffect(() => {
@@ -277,6 +279,7 @@ export default function NewCardPage() {
         provider_name:  form.provider_name || undefined,
         provider_url:   form.provider_url || undefined,
         is_public:      form.is_public,
+        monitoring_enabled: form.monitoringEnabled,
       });
       router.push("/dashboard");
     } catch (err) {
@@ -415,6 +418,14 @@ export default function NewCardPage() {
                     <div>
                       <span className="text-sm text-slate-700">Public</span>
                       <p className="text-[11px] text-slate-400">Accessible at the public URL. Uncheck to keep private.</p>
+                    </div>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-3">
+                    <input type="checkbox" checked={form.monitoringEnabled}
+                      onChange={(e) => set("monitoringEnabled", e.target.checked)} className="accent-slate-950" />
+                    <div>
+                      <span className="text-sm text-slate-700">Agent reliability monitoring</span>
+                      <p className="text-[11px] text-slate-400">Monitored by AgentStatus — adds an uptime badge and public reliability report.</p>
                     </div>
                   </label>
                 </div>

@@ -10,6 +10,7 @@ import { getSql, closeSql } from './db/client.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCardsRoutes } from './routes/cards.js';
 import { registerPublicRoutes } from './routes/public.js';
+import { startAgentStatusPoller } from './lib/agentStatusPoller.js';
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
@@ -108,7 +109,10 @@ export async function buildServer() {
 async function main(): Promise<void> {
   const { fastify, config } = await buildServer();
 
+  const stopPoller = startAgentStatusPoller(fastify, config);
+
   const shutdown = async () => {
+    stopPoller();
     await fastify.close();
     await closeSql();
     process.exit(0);

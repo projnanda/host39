@@ -40,6 +40,12 @@ export interface Config {
   };
   readonly frontendUrl: string;
   readonly publicBaseUrl: string;
+  readonly agentStatus: {
+    readonly apiBaseUrl: string;
+    readonly webhookSecret: string;
+    readonly statusApiToken: string;
+    readonly pollIntervalMs: number;
+  };
 }
 
 const DEV_JWT_SECRET = 'host39-dev-secret-change-in-production';
@@ -73,5 +79,15 @@ export function buildConfig(): Config {
     },
     frontendUrl: optionalEnv('FRONTEND_URL', 'http://localhost:3002'),
     publicBaseUrl: optionalEnv('PUBLIC_BASE_URL', 'http://localhost:3010'),
+    agentStatus: {
+      apiBaseUrl: optionalEnv('AGENTSTATUS_API_BASE_URL', 'https://api.rora.carmel.so'),
+      // Shared out-of-band by AgentStatus. Blank means monitoring stays disabled/no-op.
+      webhookSecret: optionalEnv('NANDA_WEBHOOK_SECRET', ''),
+      statusApiToken: optionalEnv('NANDA_STATUS_API_TOKEN', ''),
+      pollIntervalMs: parsePositiveInt(
+        'AGENTSTATUS_POLL_INTERVAL_MS',
+        optionalEnv('AGENTSTATUS_POLL_INTERVAL_MS', '120000'),
+      ),
+    },
   };
 }

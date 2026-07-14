@@ -159,6 +159,26 @@ export default function DashboardPage() {
                               Private
                             </span>
                           )}
+                          {card.monitoring_enabled && (
+                            card.reliability ? (
+                              <a
+                                href={card.reliability.report_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] ${
+                                  card.reliability.verdict === "UP"
+                                    ? "border border-emerald-200 bg-emerald-50 text-emerald-600"
+                                    : "border border-amber-200 bg-amber-50 text-amber-600"
+                                }`}
+                              >
+                                {card.reliability.reliability_label} · {card.reliability.uptime_pct}%
+                              </a>
+                            ) : (
+                              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">
+                                Reliability pending
+                              </span>
+                            )
+                          )}
                         </div>
                         <p className="font-mono text-xs text-slate-400">/{card.slug}</p>
                         {card.description && (

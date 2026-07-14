@@ -37,6 +37,10 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       FRONTEND_URL: ${FRONTEND_URL}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://agentcards.host39.org}
+      NANDA_WEBHOOK_SECRET: ${NANDA_WEBHOOK_SECRET:-}
+      NANDA_STATUS_API_TOKEN: ${NANDA_STATUS_API_TOKEN:-}
+      AGENTSTATUS_API_BASE_URL: ${AGENTSTATUS_API_BASE_URL:-https://api.rora.carmel.so}
+      AGENTSTATUS_POLL_INTERVAL_MS: ${AGENTSTATUS_POLL_INTERVAL_MS:-120000}
     depends_on:
       db:
         condition: service_healthy

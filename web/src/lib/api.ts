@@ -94,6 +94,20 @@ export async function getMe(): Promise<Me> {
 }
 
 // Agent cards
+export interface Reliability {
+  provider: string;
+  monitoring: string;
+  verdict: string;
+  status: string;
+  uptime_pct: number;
+  pass_rate: number;
+  last_checked_at: string;
+  reliability_label: string;
+  report_url: string;
+  badge_url: string;
+  claim_url: string;
+}
+
 export interface AgentCard {
   id: string;
   user_id: string;
@@ -109,6 +123,9 @@ export interface AgentCard {
   provider_url: string | null;
   status: "active" | "inactive";
   is_public: boolean;
+  monitoring_enabled: boolean;
+  agentstatus_locator: string | null;
+  reliability: Reliability | null;
   created_at: string;
   updated_at: string;
 }
@@ -133,6 +150,7 @@ export interface CreateCardPayload {
   provider_name?: string;
   provider_url?: string;
   is_public?: boolean;
+  monitoring_enabled?: boolean;
 }
 
 export async function createCard(payload: CreateCardPayload): Promise<AgentCard> {

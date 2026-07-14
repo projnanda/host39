@@ -1,21 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { getSql } from '../db/client.js';
 import { buildConfig } from '../config.js';
+import { buildIdentifier, buildPublicUrl } from '../lib/identifier.js';
+import { serializeReliability } from '../lib/reliability.js';
 import type { DbUser, DbAgentCard, A2AAgentCard } from '../types.js';
-
-function buildIdentifier(user: DbUser, slug: string): string {
-  if (user.identityType === 'domain' && user.domain) {
-    return `urn:ai:domain:${user.domain}:agent:${slug}`;
-  }
-  return `urn:ai:email:${user.email}:agent:${slug}`;
-}
-
-function buildPublicUrl(user: DbUser, slug: string, baseUrl: string): string {
-  if (user.identityType === 'domain' && user.domain) {
-    return `${baseUrl}/${user.domain}/${slug}.json`;
-  }
-  return `${baseUrl}/personal/${user.handle}/${slug}.json`;
-}
 
 function buildAgentCard(user: DbUser, card: DbAgentCard, publicUrl: string): A2AAgentCard {
   const identifier = buildIdentifier(user, card.slug);
@@ -36,6 +24,9 @@ function buildAgentCard(user: DbUser, card: DbAgentCard, publicUrl: string): A2A
       identifier,
       publicUrl,
       hostedBy: 'host39.org',
+      ...(card.monitoringEnabled && card.reliability
+        ? { reliability: serializeReliability(card.reliability) }
+        : {}),
     },
   };
 }
@@ -186,6 +177,15 @@ export async function registerPublicRoutes(fastify: FastifyInstance): Promise<vo
           url:         publicUrl,
           description: row.description,
           tags:        [] as string[],
+          ...(row.monitoringEnabled && row.reliability
+            ? {
+                reliability: {
+                  verdict:           row.reliability.verdict,
+                  uptime_pct:        row.reliability.uptimePct,
+                  reliability_label: row.reliability.reliabilityLabel,
+                },
+              }
+            : {}),
         };
       });
 

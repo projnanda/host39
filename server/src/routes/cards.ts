@@ -1,12 +1,34 @@
 import type { FastifyInstance } from 'fastify';
 import { getSql } from '../db/client.js';
-import type { DbAgentCard } from '../types.js';
+import { buildConfig } from '../config.js';
+import { buildIdentifier, buildPublicUrl } from '../lib/identifier.js';
+import { notifyCardPublished } from '../lib/agentStatusClient.js';
+import { serializeReliability } from '../lib/reliability.js';
+import type { DbAgentCard, DbUser } from '../types.js';
 
 const apiErrorSchema = {
   type: 'object',
   properties: {
     error: { type: 'string' },
     detail: { type: 'string' },
+  },
+} as const;
+
+const reliabilitySchema = {
+  type: 'object',
+  nullable: true,
+  properties: {
+    provider:           { type: 'string' },
+    monitoring:         { type: 'string' },
+    verdict:            { type: 'string' },
+    status:             { type: 'string' },
+    uptime_pct:         { type: 'number' },
+    pass_rate:          { type: 'number' },
+    last_checked_at:    { type: 'string' },
+    reliability_label:  { type: 'string' },
+    report_url:         { type: 'string' },
+    badge_url:          { type: 'string' },
+    claim_url:          { type: 'string' },
   },
 } as const;
 
@@ -27,6 +49,9 @@ const agentCardSchema = {
     provider_url:   { type: 'string', nullable: true },
     status:         { type: 'string' },
     is_public:      { type: 'boolean' },
+    monitoring_enabled: { type: 'boolean' },
+    agentstatus_locator: { type: 'string', nullable: true },
+    reliability:    reliabilitySchema,
     created_at:     { type: 'string' },
     updated_at:     { type: 'string' },
   },
@@ -44,6 +69,7 @@ interface CreateCardBody {
   provider_name?: string;
   provider_url?: string;
   is_public?: boolean;
+  monitoring_enabled?: boolean;
 }
 
 interface UpdateCardBody {
@@ -59,6 +85,7 @@ interface UpdateCardBody {
   provider_url?: string;
   status?: 'active' | 'inactive';
   is_public?: boolean;
+  monitoring_enabled?: boolean;
 }
 
 function mapCard(card: DbAgentCard) {
@@ -77,9 +104,38 @@ function mapCard(card: DbAgentCard) {
     provider_url:   card.providerUrl,
     status:         card.status,
     is_public:      card.isPublic,
+    monitoring_enabled:  card.monitoringEnabled,
+    agentstatus_locator: card.agentstatusLocator,
+    reliability:         card.reliability ? serializeReliability(card.reliability) : null,
     created_at:     card.createdAt,
     updated_at:     card.updatedAt,
   };
+}
+
+async function enableMonitoring(
+  fastify: FastifyInstance,
+  user: DbUser,
+  card: DbAgentCard,
+  enable: boolean,
+): Promise<Pick<DbAgentCard, 'agentstatusLocator' | 'reliability'>> {
+  const config = buildConfig();
+  const locator = buildIdentifier(user, card.slug);
+  const agentCardUrl = buildPublicUrl(user, card.slug, config.publicBaseUrl);
+
+  const reliability = await notifyCardPublished(
+    config.agentStatus,
+    {
+      locator,
+      agentCardUrl,
+      displayName: card.displayName,
+      status: card.status,
+      ownerEmail: user.email,
+      enable,
+    },
+    fastify.log,
+  );
+
+  return { agentstatusLocator: locator, reliability };
 }
 
 export async function registerCardsRoutes(fastify: FastifyInstance): Promise<void> {
@@ -131,6 +187,7 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
             provider_name:  { type: 'string', maxLength: 255 },
             provider_url:   { type: 'string', maxLength: 512 },
             is_public:      { type: 'boolean' },
+            monitoring_enabled: { type: 'boolean' },
           },
         },
         response: {
@@ -156,6 +213,7 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
         provider_name,
         provider_url,
         is_public = true,
+        monitoring_enabled = false,
       } = request.body;
 
       // Check slug uniqueness for this user
@@ -166,10 +224,11 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
         return reply.code(409).send({ error: 'CONFLICT', detail: 'slug already exists for this user' });
       }
 
-      const [card] = await sql<DbAgentCard[]>`
+      let [card] = await sql<DbAgentCard[]>`
         INSERT INTO agent_cards (
           user_id, slug, display_name, description, runtime_url, version,
-          capabilities, authentication, skills, provider_name, provider_url, is_public
+          capabilities, authentication, skills, provider_name, provider_url, is_public,
+          monitoring_enabled
         ) VALUES (
           ${userId},
           ${slug},
@@ -182,13 +241,33 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
           ${sql.json(JSON.parse(JSON.stringify(skills)))},
           ${provider_name ?? null},
           ${provider_url ?? null},
-          ${is_public}
+          ${is_public},
+          ${monitoring_enabled}
         )
         RETURNING *
       `;
 
       if (!card) {
         return reply.code(500).send({ error: 'internal_server_error' });
+      }
+
+      if (monitoring_enabled) {
+        try {
+          const [user] = await sql<DbUser[]>`SELECT * FROM users WHERE id = ${userId}`;
+          if (user) {
+            const { agentstatusLocator, reliability } = await enableMonitoring(fastify, user, card, true);
+            const [updated] = await sql<DbAgentCard[]>`
+              UPDATE agent_cards
+              SET agentstatus_locator = ${agentstatusLocator},
+                  reliability = ${reliability ? sql.json(JSON.parse(JSON.stringify(reliability))) : null}
+              WHERE id = ${card.id}
+              RETURNING *
+            `;
+            if (updated) card = updated;
+          }
+        } catch (err) {
+          fastify.log.warn({ err, cardId: card.id }, 'Failed to enable AgentStatus monitoring on create');
+        }
       }
 
       return reply.code(201).send(mapCard(card));
@@ -257,6 +336,7 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
             provider_url:   { type: 'string', maxLength: 512 },
             status:         { type: 'string', enum: ['active', 'inactive'] },
             is_public:      { type: 'boolean' },
+            monitoring_enabled: { type: 'boolean' },
           },
         },
         response: {
@@ -293,6 +373,7 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
         provider_url,
         status,
         is_public,
+        monitoring_enabled,
       } = request.body;
 
       // Check slug conflict if slug is being changed
@@ -319,6 +400,7 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
           provider_url   = ${provider_url !== undefined ? provider_url : card.providerUrl},
           status         = ${status ?? card.status},
           is_public      = ${is_public !== undefined ? is_public : card.isPublic},
+          monitoring_enabled = ${monitoring_enabled !== undefined ? monitoring_enabled : card.monitoringEnabled},
           updated_at     = NOW()
         WHERE id = ${id} AND user_id = ${userId}
         RETURNING *
@@ -328,7 +410,46 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
         return reply.code(500).send({ error: 'internal_server_error' });
       }
 
-      return reply.send(mapCard(updated));
+      let result = updated;
+
+      // Monitoring flipped off → clear cached reliability; flipped on → enable via AgentStatus.
+      const monitoringWasEnabled = card.monitoringEnabled;
+      const monitoringIsEnabled = updated.monitoringEnabled;
+
+      if (!monitoringWasEnabled && monitoringIsEnabled) {
+        try {
+          const [user] = await sql<DbUser[]>`SELECT * FROM users WHERE id = ${userId}`;
+          if (user) {
+            const { agentstatusLocator, reliability } = await enableMonitoring(fastify, user, updated, true);
+            const [withReliability] = await sql<DbAgentCard[]>`
+              UPDATE agent_cards
+              SET agentstatus_locator = ${agentstatusLocator},
+                  reliability = ${reliability ? sql.json(JSON.parse(JSON.stringify(reliability))) : null}
+              WHERE id = ${updated.id}
+              RETURNING *
+            `;
+            if (withReliability) result = withReliability;
+          }
+        } catch (err) {
+          fastify.log.warn({ err, cardId: updated.id }, 'Failed to enable AgentStatus monitoring on update');
+        }
+      } else if (monitoringWasEnabled && !monitoringIsEnabled) {
+        try {
+          const [user] = await sql<DbUser[]>`SELECT * FROM users WHERE id = ${userId}`;
+          if (user && updated.agentstatusLocator) {
+            await enableMonitoring(fastify, user, updated, false);
+          }
+        } catch (err) {
+          fastify.log.warn({ err, cardId: updated.id }, 'Failed to disable AgentStatus monitoring on update');
+        }
+        const [cleared] = await sql<DbAgentCard[]>`
+          UPDATE agent_cards SET reliability = NULL WHERE id = ${updated.id}
+          RETURNING *
+        `;
+        if (cleared) result = cleared;
+      }
+
+      return reply.send(mapCard(result));
     },
   );
 
