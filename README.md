@@ -17,6 +17,7 @@ Requester → NANDA Index → agentcards.host39.org/<domain>/<slug>.json → Age
 - Serves `/.well-known/ai-catalog.json` as an aggregate AI Catalog of all active cards
 - Web dashboard for managing cards
 - No server required for your agents
+- Optional agent reliability monitoring via [AgentStatus](https://agentstatus.dev) — enable a checkbox on any card to get an uptime badge and public reliability report
 
 ---
 
@@ -124,6 +125,13 @@ FRONTEND_URL=https://host39.org
 # Baked into Next.js build
 NEXT_PUBLIC_HOST39_API_URL=https://host39.org
 NEXT_PUBLIC_HOST39_PUBLIC_BASE_URL=https://agentcards.host39.org
+
+# AgentStatus (agentstatus.dev) reliability monitoring — shared out-of-band by
+# AgentStatus. Leave blank to keep the monitoring checkbox a no-op.
+NANDA_WEBHOOK_SECRET=
+NANDA_STATUS_API_TOKEN=
+AGENTSTATUS_API_BASE_URL=https://api.rora.carmel.so
+AGENTSTATUS_POLL_INTERVAL_MS=120000
 ```
 
 ---
@@ -216,6 +224,34 @@ Now `urn:ai:domain:moonbakery.com:agent:orders` resolves end-to-end.
 
 ---
 
+## Agent Reliability Monitoring (AgentStatus)
+
+Any card can opt into third-party uptime monitoring via
+[AgentStatus](https://agentstatus.dev), toggled with the `monitoring_enabled`
+field (a checkbox in the dashboard forms).
+
+- When enabled, host39 signs and sends a `card-published` webhook
+  (HMAC-SHA256 over the JSON body, `X-Nanda-Signature` header) to
+  AgentStatus's partner API, identifying the card by its NANDA URN
+  (`urn:ai:domain:<domain>:agent:<slug>` or `urn:ai:email:<email>:agent:<slug>`)
+  and its own public card URL (`agent_card_url`) — **not** the card's
+  `runtime_url`. AgentStatus fetches the card from `agent_card_url` and reads
+  `runtime_url` from inside it to know what to probe.
+- The returned `reliability` object (verdict, uptime %, pass rate, and
+  report/badge/claim links) is cached on the card and re-polled every
+  `AGENTSTATUS_POLL_INTERVAL_MS` (default 2 min).
+- Reliability data is surfaced on the dashboard, the edit page, and in the
+  public card JSON / `.well-known/ai-catalog.json`.
+- Without `NANDA_WEBHOOK_SECRET` / `NANDA_STATUS_API_TOKEN` configured, the
+  checkbox still works but monitoring stays in a "pending setup" state
+  (`reliability: null`) — no outbound calls are made.
+- `agent_card_url` is built from `PUBLIC_BASE_URL`, so it must be a
+  publicly-reachable address (e.g. `https://agentcards.host39.org`) for
+  AgentStatus to actually fetch the card — this doesn't work against
+  `localhost` in local dev without a tunnel.
+
+---
+
 ## Schema
 
 ### Agent Card (public response)
@@ -237,6 +273,11 @@ interface A2AAgentCard {
     identifier: string;   // URN
     publicUrl:  string;   // this card's URL on agentcards.host39.org
     hostedBy:   string;   // "host39.org"
+    reliability?: {       // present only when monitoring is enabled and data has arrived
+      provider: string; monitoring: string; verdict: string; status: string;
+      uptime_pct: number; pass_rate: number; last_checked_at: string;
+      reliability_label: string; report_url: string; badge_url: string; claim_url: string;
+    };
   };
 }
 ```
@@ -273,6 +314,9 @@ CREATE TABLE agent_cards (
   provider_url   VARCHAR(512),
   status         VARCHAR(20) NOT NULL DEFAULT 'active',
   is_public      BOOLEAN NOT NULL DEFAULT TRUE,
+  monitoring_enabled  BOOLEAN NOT NULL DEFAULT FALSE,  -- AgentStatus reliability monitoring
+  agentstatus_locator VARCHAR(512),                    -- NANDA URN, set once monitoring is enabled
+  reliability         JSONB,                            -- cached AgentStatus response
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (user_id, slug)
@@ -302,6 +346,10 @@ CREATE TABLE agent_cards (
 | `GET`    | `/cards/:id` | Get a card |
 | `PUT`    | `/cards/:id` | Update a card |
 | `DELETE` | `/cards/:id` | Delete a card |
+
+Cards accept an optional `monitoring_enabled` boolean in the create/update
+body; responses include `monitoring_enabled`, `agentstatus_locator`, and
+`reliability` (see [Agent Reliability Monitoring](#agent-reliability-monitoring-agentstatus)).
 
 ### Public card serving (no auth)
 
