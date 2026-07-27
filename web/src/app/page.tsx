@@ -29,12 +29,12 @@ export default function HomePage() {
             Agent Card Hosting
           </div>
           <h1 className="font-serif text-5xl italic leading-tight tracking-tight text-slate-950 sm:text-6xl">
-            host your agents
+            host your agents facts
             <br />
             <span className="text-slate-400">at predictable URLs</span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-relaxed text-slate-600">
-            host39 is a third-party A2A agent card host. Register your identity, create agent cards,
+            host39 is a third-party A2A agent facts host. Register your identity, create agent cards,
             and publish them at stable public URLs — no server required.
           </p>
           <div className="mt-8 flex flex-wrap gap-4">
@@ -78,7 +78,7 @@ export default function HomePage() {
             {
               step: "03",
               title: "Share the URL",
-              desc: "Your card is live at a stable public URL. Register it with the NANDA Index so resolvers can find your agent by identity.",
+              desc: "Your card is live at a stable public URL. Register it with NANDA Index (nandaindex.org) so resolvers can find your agent by identity.",
             },
           ].map((item) => (
             <div
@@ -138,6 +138,23 @@ export default function HomePage() {
             {JSON.stringify(SAMPLE_CARD, null, 2)}
           </pre>
         </div>
+      </section>
+
+      {/* Discovery */}
+      <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+        <p className="text-sm text-slate-600">
+          host39 hosts the card. To make your agent discoverable by identity (domain,
+          email, or URN), register it with{" "}
+          <a
+            href="https://nandaindex.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-slate-950 underline hover:text-slate-700"
+          >
+            NANDA Index
+          </a>
+          .
+        </p>
       </section>
     </>
   );
