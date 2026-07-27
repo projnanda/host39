@@ -1,7 +1,7 @@
 {
   "name": "host39-server",
   "version": "0.1.0",
-  "description": "host39 — A2A Agent Card hosting service API",
+  "description": "host39 — A2A Agent Facts hosting service API",
   "private": true,
   "type": "module",
   "engines": {
