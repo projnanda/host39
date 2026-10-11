@@ -38,6 +38,7 @@ export interface Config {
     readonly secret: string;
     readonly expiresIn: string;
   };
+  /** Web app origin — verification links point at `${frontendUrl}/verify-email`. */
   readonly frontendUrl: string;
   readonly publicBaseUrl: string;
   readonly agentStatus: {
@@ -46,6 +47,24 @@ export interface Config {
     readonly statusApiToken: string;
     readonly pollIntervalMs: number;
   };
+  readonly email: {
+    /** Secret — never log. Blank means "log links instead of sending" (non-production only). */
+    readonly resendApiKey: string;
+    readonly from: string;
+  };
+}
+
+const DEFAULT_EMAIL_FROM = 'Host39 <noreply@host39.org>';
+
+/**
+ * Production must be able to send verification email; without a key every
+ * new account would be stuck unverified. Returns the FATAL message, or null.
+ */
+export function emailConfigError(nodeEnv: string, resendApiKey: string): string | null {
+  if (nodeEnv === 'production' && resendApiKey.trim() === '') {
+    return 'RESEND_API_KEY must be set in production (verification emails are sent via Resend)';
+  }
+  return null;
 }
 
 const DEV_JWT_SECRET = 'host39-dev-secret-change-in-production';
@@ -64,6 +83,13 @@ export function buildConfig(): Config {
       console.error(`FATAL: JWT_SECRET must be at least ${MIN_JWT_SECRET_LENGTH} characters in production`);
       process.exit(1);
     }
+  }
+
+  const resendApiKey = optionalEnv('RESEND_API_KEY', '');
+  const emailError = emailConfigError(nodeEnv, resendApiKey);
+  if (emailError) {
+    console.error(`FATAL: ${emailError}`);
+    process.exit(1);
   }
 
   return {
@@ -88,6 +114,10 @@ export function buildConfig(): Config {
         'AGENTSTATUS_POLL_INTERVAL_MS',
         optionalEnv('AGENTSTATUS_POLL_INTERVAL_MS', '120000'),
       ),
+    },
+    email: {
+      resendApiKey,
+      from: optionalEnv('EMAIL_FROM', DEFAULT_EMAIL_FROM),
     },
   };
 }

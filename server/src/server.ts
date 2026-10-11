@@ -10,6 +10,10 @@ import { getSql, closeSql } from './db/client.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerCardsRoutes } from './routes/cards.js';
 import { registerPublicRoutes } from './routes/public.js';
+import { registerDomainRoutes } from './routes/domain.js';
+import type { TxtResolver } from './lib/domainVerification.js';
+import { createEmailSender, type EmailSender } from './lib/email.js';
+import { createVerificationIssuer, registerEmailVerificationRoutes } from './routes/emailVerification.js';
 import { startAgentStatusPoller } from './lib/agentStatusPoller.js';
 
 declare module '@fastify/jwt' {
@@ -25,13 +29,22 @@ declare module 'fastify' {
   }
 }
 
-export async function buildServer() {
+export interface BuildServerOptions {
+  /** false silences request logging (tests). */
+  readonly logger?: boolean;
+  /** DNS TXT resolver for domain verification — overridable in tests. */
+  readonly txtResolver?: TxtResolver;
+  /** Outgoing email — overridable in tests to capture instead of send. */
+  readonly emailSender?: EmailSender;
+}
+
+export async function buildServer(options: BuildServerOptions = {}) {
   const config = buildConfig();
 
   const fastify = Fastify({
-    logger: {
-      level: config.nodeEnv === 'production' ? 'info' : 'debug',
-    },
+    logger: options.logger === false
+      ? false
+      : { level: config.nodeEnv === 'production' ? 'info' : 'debug' },
   });
 
   // Error handler
@@ -100,7 +113,11 @@ export async function buildServer() {
   // IMPORTANT: public routes with /personal/ prefix must be registered FIRST
   // to avoid being caught by the generic /:domain/:slug.json route.
   await registerPublicRoutes(fastify);
-  await registerAuthRoutes(fastify);
+  const emailSender = options.emailSender ?? createEmailSender(config.email, fastify.log);
+  const issueVerification = createVerificationIssuer(emailSender, config.frontendUrl);
+  await registerAuthRoutes(fastify, issueVerification);
+  await registerEmailVerificationRoutes(fastify, issueVerification);
+  await registerDomainRoutes(fastify, options.txtResolver);
   await registerCardsRoutes(fastify);
 
   return { fastify, config };

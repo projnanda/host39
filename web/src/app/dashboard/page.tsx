@@ -8,6 +8,17 @@ import { ApiError, getMe, listCards, getPublicUrl } from "@/lib/api";
 import type { Me, AgentCard } from "@/lib/api";
 import { clearAuthToken } from "@/lib/auth";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { isSafeHttpsUrl } from "@/lib/utils";
+import { DomainVerificationPanel } from "@/components/DomainVerificationPanel";
+import { EmailVerificationBanner } from "@/components/EmailVerificationBanner";
+
+function reliabilityPillClass(verdict: string): string {
+  return `rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] ${
+    verdict === "UP"
+      ? "border border-emerald-200 bg-emerald-50 text-emerald-600"
+      : "border border-amber-200 bg-amber-50 text-amber-600"
+  }`;
+}
 
 export default function DashboardPage() {
   useRequireAuth();
@@ -104,6 +115,15 @@ export default function DashboardPage() {
           </button>
         </div>
 
+        {!me.email_verified && <EmailVerificationBanner email={me.email} />}
+
+        {me.identity_type === "domain" && me.domain && !me.domain_verified && (
+          <DomainVerificationPanel
+            domain={me.domain}
+            onVerified={() => setMe({ ...me, domain_verified: true })}
+          />
+        )}
+
         {/* Agent cards */}
         <div>
           <div className="mb-3 flex items-center justify-between">
@@ -161,18 +181,21 @@ export default function DashboardPage() {
                           )}
                           {card.monitoring_enabled && (
                             card.reliability ? (
-                              <a
-                                href={card.reliability.report_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] ${
-                                  card.reliability.verdict === "UP"
-                                    ? "border border-emerald-200 bg-emerald-50 text-emerald-600"
-                                    : "border border-amber-200 bg-amber-50 text-amber-600"
-                                }`}
-                              >
-                                {card.reliability.reliability_label} · {card.reliability.uptime_pct}%
-                              </a>
+                              // report_url comes from AgentStatus — only link it if it's https://.
+                              isSafeHttpsUrl(card.reliability.report_url) ? (
+                                <a
+                                  href={card.reliability.report_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={reliabilityPillClass(card.reliability.verdict)}
+                                >
+                                  {card.reliability.reliability_label} · {card.reliability.uptime_pct}%
+                                </a>
+                              ) : (
+                                <span className={reliabilityPillClass(card.reliability.verdict)}>
+                                  {card.reliability.reliability_label} · {card.reliability.uptime_pct}%
+                                </span>
+                              )
                             ) : (
                               <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500">
                                 Reliability pending

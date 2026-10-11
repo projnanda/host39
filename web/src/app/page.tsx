@@ -13,7 +13,7 @@ const SAMPLE_CARD = {
   ],
   provider: { organization: "Moon Bakery", url: "https://moonbakery.com" },
   _meta: {
-    identifier: "urn:ai:domain:moonbakery.com:agent:orders",
+    identifier: "urn:air:moonbakery.com:agent:orders",
     publicUrl: "https://agentcards.host39.org/moonbakery.com/orders.json",
     hostedBy: "host39.org",
   },
@@ -115,7 +115,7 @@ export default function HomePage() {
           <div className="rounded-3xl border border-black/10 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Personal / Email</p>
             <code className="mt-3 block rounded-xl border border-black/5 bg-slate-50 p-4 font-mono text-sm text-slate-800">
-              /personal/john@hotmail.com/card.json
+              /personal/john/card.json
             </code>
             <p className="mt-3 text-sm text-slate-600">
               Register with your email for personal agent cards — great for developers and individuals.

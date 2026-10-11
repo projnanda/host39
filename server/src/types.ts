@@ -13,6 +13,10 @@ export interface DbUser {
   passwordHash: string;
   identityType: 'domain' | 'email';
   domain: string | null;
+  /** Cards are only publicly served once true (emailed link, see routes/emailVerification.ts). */
+  emailVerified: boolean;
+  /** SMB cards are only served under /<domain>/ once this is true (DNS TXT challenge). */
+  domainVerified: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

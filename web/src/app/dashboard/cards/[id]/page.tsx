@@ -7,6 +7,7 @@ import { ApiError, getCard, getMe, updateCard, deleteCard, getPublicUrl } from "
 import type { AgentCard, Me } from "@/lib/api";
 import { clearAuthToken } from "@/lib/auth";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import { isSafeHttpsUrl } from "@/lib/utils";
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -255,18 +256,25 @@ export default function EditCardPage() {
                   <span className="text-sm text-slate-500">
                     {card.reliability.uptime_pct}% uptime
                   </span>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={card.reliability.badge_url} alt="Agent status badge" height={20} />
+                  {/* AgentStatus-supplied URLs are only rendered when https:// */}
+                  {isSafeHttpsUrl(card.reliability.badge_url) && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={card.reliability.badge_url} alt="Agent status badge" height={20} />
+                  )}
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <a href={card.reliability.report_url} target="_blank" rel="noopener noreferrer"
-                    className="text-slate-700 underline hover:text-slate-950">
-                    View full report
-                  </a>
-                  <a href={card.reliability.claim_url} target="_blank" rel="noopener noreferrer"
-                    className="text-slate-700 underline hover:text-slate-950">
-                    Manage alerts &amp; metrics
-                  </a>
+                  {isSafeHttpsUrl(card.reliability.report_url) && (
+                    <a href={card.reliability.report_url} target="_blank" rel="noopener noreferrer"
+                      className="text-slate-700 underline hover:text-slate-950">
+                      View full report
+                    </a>
+                  )}
+                  {isSafeHttpsUrl(card.reliability.claim_url) && (
+                    <a href={card.reliability.claim_url} target="_blank" rel="noopener noreferrer"
+                      className="text-slate-700 underline hover:text-slate-950">
+                      Manage alerts &amp; metrics
+                    </a>
+                  )}
                 </div>
               </div>
             ) : (

@@ -20,10 +20,11 @@ async function seed() {
   // Wipe
   await sql`TRUNCATE agent_cards, users RESTART IDENTITY CASCADE`;
 
+  // Seed accounts are pre-verified (email + DNS) so their cards are served locally.
   // ── SMB 1: Moon Bakery ────────────────────────────────────────────────────
   const [mb] = await sql<[{id: string}]>`
-    INSERT INTO users (email, handle, display_name, password_hash, identity_type, domain)
-    VALUES ('admin@moonbakery.com', 'moonbakery', 'Moon Bakery', ${hash}, 'domain', 'moonbakery.com')
+    INSERT INTO users (email, handle, display_name, password_hash, identity_type, domain, email_verified, domain_verified)
+    VALUES ('admin@moonbakery.com', 'moonbakery', 'Moon Bakery', ${hash}, 'domain', 'moonbakery.com', TRUE, TRUE)
     RETURNING id
   `;
   await sql`
@@ -46,8 +47,8 @@ async function seed() {
 
   // ── SMB 2: TechCorp ───────────────────────────────────────────────────────
   const [tc] = await sql<[{id: string}]>`
-    INSERT INTO users (email, handle, display_name, password_hash, identity_type, domain)
-    VALUES ('admin@techcorp.io', 'techcorp', 'TechCorp', ${hash}, 'domain', 'techcorp.io')
+    INSERT INTO users (email, handle, display_name, password_hash, identity_type, domain, email_verified, domain_verified)
+    VALUES ('admin@techcorp.io', 'techcorp', 'TechCorp', ${hash}, 'domain', 'techcorp.io', TRUE, TRUE)
     RETURNING id
   `;
   await sql`

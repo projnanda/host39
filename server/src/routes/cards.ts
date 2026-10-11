@@ -4,6 +4,7 @@ import { buildConfig } from '../config.js';
 import { buildIdentifier, buildPublicUrl } from '../lib/identifier.js';
 import { notifyCardPublished } from '../lib/agentStatusClient.js';
 import { serializeReliability } from '../lib/reliability.js';
+import { isHttpsUrl } from '../lib/httpsUrl.js';
 import type { DbAgentCard, DbUser } from '../types.js';
 
 const apiErrorSchema = {
@@ -88,6 +89,18 @@ interface UpdateCardBody {
   monitoring_enabled?: boolean;
 }
 
+const URL_FIELDS = ['runtime_url', 'provider_url'] as const;
+
+/**
+ * runtime_url / provider_url are published in the public card and rendered as
+ * links, so only https:// is accepted (no javascript:, data:, http:, ...).
+ * Returns an error detail for the first offending field, or null.
+ */
+function findInsecureUrl(body: Partial<Record<(typeof URL_FIELDS)[number], string>>): string | null {
+  const field = URL_FIELDS.find((name) => body[name] !== undefined && !isHttpsUrl(body[name]!));
+  return field ? `${field} must be an absolute https:// URL` : null;
+}
+
 function mapCard(card: DbAgentCard) {
   return {
     id:             card.id,
@@ -119,6 +132,11 @@ async function enableMonitoring(
   enable: boolean,
 ): Promise<Pick<DbAgentCard, 'agentstatusLocator' | 'reliability'>> {
   const config = buildConfig();
+  // The locator is the card's NANDA identifier (urn:air:...). Rows enabled
+  // before the urn:air switch keep their stored urn:ai:* locator until
+  // monitoring is re-toggled — it's AgentStatus's key, so no bulk rewrite.
+  // NOTE: personal cards share one identifier per email, so two monitored
+  // personal cards of the same user send the same locator to AgentStatus.
   const locator = buildIdentifier(user, card.slug);
   const agentCardUrl = buildPublicUrl(user, card.slug, config.publicBaseUrl);
 
@@ -215,6 +233,11 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
         is_public = true,
         monitoring_enabled = false,
       } = request.body;
+
+      const insecureUrl = findInsecureUrl(request.body);
+      if (insecureUrl) {
+        return reply.code(400).send({ error: 'BAD_REQUEST', detail: insecureUrl });
+      }
 
       // Check slug uniqueness for this user
       const [existing] = await sql<DbAgentCard[]>`
@@ -341,6 +364,7 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
         },
         response: {
           200: agentCardSchema,
+          400: apiErrorSchema,
           401: apiErrorSchema,
           404: apiErrorSchema,
           409: apiErrorSchema,
@@ -351,6 +375,11 @@ export async function registerCardsRoutes(fastify: FastifyInstance): Promise<voi
     async (request, reply) => {
       const { userId } = request.user;
       const { id } = request.params;
+
+      const insecureUrl = findInsecureUrl(request.body);
+      if (insecureUrl) {
+        return reply.code(400).send({ error: 'BAD_REQUEST', detail: insecureUrl });
+      }
 
       const [card] = await sql<DbAgentCard[]>`
         SELECT * FROM agent_cards WHERE id = ${id} AND user_id = ${userId}

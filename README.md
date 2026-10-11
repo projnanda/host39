@@ -60,6 +60,32 @@ docker compose up --build
 | Web UI  | http://localhost:3002 |
 | API     | http://localhost:3010 |
 
+### Tests
+
+```bash
+cd server
+# Integration tests drop and recreate the `public` schema — use a throwaway DB.
+DATABASE_URL=postgresql://user:pass@localhost:5432/host39_test npm test
+npm run test:unit   # no DB needed
+cd ../web && npm test
+```
+
+### Upgrading
+
+Migration `004_normalise_email_domain.sql` lowercases existing emails and
+domains. If two accounts differ only by case (e.g. `John@x.com` and
+`john@x.com`) it aborts without changing anything and reports how many. Find
+them before deploying with:
+
+```sql
+SELECT lower(trim(email)), COUNT(*) FROM users GROUP BY 1 HAVING COUNT(*) > 1;
+SELECT lower(trim(domain)), COUNT(*) FROM users WHERE domain IS NOT NULL GROUP BY 1 HAVING COUNT(*) > 1;
+```
+
+Merge or rename those accounts, then redeploy. Migrations 005/006 mark all
+existing accounts `email_verified` and `domain_verified` so published cards
+keep resolving; new accounts start unverified.
+
 ---
 
 ## Production Deployment
@@ -119,8 +145,13 @@ POSTGRES_PASSWORD=          # strong random password
 JWT_SECRET=
 JWT_EXPIRES_IN=7d
 
-# Frontend origin
+# Frontend origin — also the base of verification links (<FRONTEND_URL>/verify-email?token=…)
 FRONTEND_URL=https://host39.org
+
+# Email verification via Resend — RESEND_API_KEY is REQUIRED in production
+# (the server exits at startup without it). Never commit a real key.
+RESEND_API_KEY=
+EMAIL_FROM=Host39 <noreply@host39.org>
 
 # Baked into Next.js build
 NEXT_PUBLIC_HOST39_API_URL=https://host39.org
@@ -133,6 +164,28 @@ NANDA_STATUS_API_TOKEN=
 AGENTSTATUS_API_BASE_URL=https://api.rora.carmel.so
 AGENTSTATUS_POLL_INTERVAL_MS=120000
 ```
+
+### Email verification (Resend)
+
+New accounts get a verification email on sign-up. Until the link is clicked
+the user can sign in, but their cards are **not** publicly served and don't
+appear in `/.well-known/ai-catalog.json` (SMB cards additionally need a
+verified domain). One-time setup:
+
+1. In Resend, **add and verify the sending domain** `host39.org` (Domains →
+   Add domain, then publish the SPF/DKIM DNS records Resend shows and wait for
+   "Verified"). `EMAIL_FROM` must use an address on that domain.
+2. **Create an API key** (API Keys → Create, permission "Sending access",
+   restricted to `host39.org`).
+3. Set `RESEND_API_KEY`, `EMAIL_FROM` and `FRONTEND_URL` in `.env.prod`, then
+   redeploy.
+
+Locally, leave `RESEND_API_KEY` blank: the server (with `NODE_ENV` other than
+`production`) logs the verification link instead of sending. Existing accounts
+were grandfathered as verified by migration 005 and are unaffected.
+
+Tokens are 32 random bytes, stored only as a SHA-256 hash, valid 24h and
+single-use; `POST /auth/resend-verification` is limited to once per 60s.
 
 ---
 
@@ -166,6 +219,29 @@ curl -X POST https://host39.org/auth/register \
   }'
 ```
 
+A verification link is emailed on sign-up (`verification_email_sent` in the
+response); cards go public once it's clicked. Emails are stored and matched lowercased. SMB domains must be a valid
+lowercase FQDN; `host39.org`, its subdomains, and route names (`personal`,
+`.well-known`, `api`, `_next`, `auth`, `cards`, …) are rejected.
+
+### Step 1b (SMB only): Prove you own the domain
+
+SMB cards are **not served** under `/<domain>/` until the domain is verified
+with a DNS TXT record (unverified claims also don't block the real owner from
+registering the same domain):
+
+```bash
+curl -X POST https://host39.org/auth/domain-challenge -H "Authorization: Bearer $TOKEN"
+# { "record_name": "_host39-challenge.moonbakery.com", "record_type": "TXT",
+#   "record_value": "host39-verify=<token>", "expires_at": "..." }
+
+# Publish that TXT record, wait for DNS, then:
+curl -X POST https://host39.org/auth/verify-domain -H "Authorization: Bearer $TOKEN"
+# { "domain": "moonbakery.com", "domain_verified": true }
+```
+
+The dashboard shows the same flow for unverified SMB accounts.
+
 ### Step 2: Create an agent card
 
 ```bash
@@ -194,6 +270,11 @@ https://agentcards.host39.org/moonbakery.com/orders.json
 
 ### Step 3: Register in NANDA Index
 
+Identifiers are ARD URNs: `urn:air:<publisher-FQDN>:<namespace...>:<short-name>`.
+host39 emits the same identifier in each card's `_meta.identifier`.
+
+**SMB** — identifier `urn:air:<domain>:agent:<slug>`:
+
 ```bash
 curl -X POST https://api.nandaindex.org/api/v1/orgs \
   -H "Content-Type: application/json" \
@@ -205,22 +286,47 @@ curl -X POST https://api.nandaindex.org/api/v1/orgs \
     "domain": "moonbakery.com",
     "contact_email": "admin@moonbakery.com",
     "registry_url": "https://agentcards.host39.org/moonbakery.com/orders.json",
-    "identifier": "urn:ai:domain:moonbakery.com:agent:orders",
-    "media_type": "application/a2a-agent-card+json",
-    "publisher": {
-      "identifier": "urn:ai:domain:moonbakery.com",
-      "displayName": "Moon Bakery",
-      "identityType": "dns"
-    },
-    "catalog_metadata": {
-      "org.projectnanda.preferredDiscovery": "nandaindex",
-      "org.projectnanda.resolutionRole": "smb-agent-card",
-      "org.projectnanda.agentCardHost": "agentcards.host39.org"
+    "identifier": "urn:air:moonbakery.com:agent:orders",
+    "publisher": { "displayName": "Moon Bakery" },
+    "extensions": {
+      "org.projectnanda": {
+        "agentCardHost": "host39.org",
+        "runtime.provider": "Moon Bakery",
+        "runtime.url": "https://orders.moonbakery.com/agent"
+      }
     }
   }'
 ```
 
-Now `urn:ai:domain:moonbakery.com:agent:orders` resolves end-to-end.
+Now `urn:air:moonbakery.com:agent:orders` resolves end-to-end.
+
+**Personal** — no domain; `contact_email` is the identity email and the index
+derives the identifier `urn:air:host39.org:personal:<email>` (e.g.
+`urn:air:host39.org:personal:john@hotmail.com`):
+
+```bash
+curl -X POST https://api.nandaindex.org/api/v1/orgs \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <nanda-index-token>" \
+  -d '{
+    "org_id": "john",
+    "display_name": "John",
+    "hosting_path": "personal",
+    "contact_email": "john@hotmail.com",
+    "registry_url": "https://agentcards.host39.org/personal/john/agent.json",
+    "publisher": { "displayName": "John" },
+    "extensions": {
+      "org.projectnanda": {
+        "agentCardHost": "host39.org",
+        "runtime.url": "https://john.example.com/agent"
+      }
+    }
+  }'
+```
+
+The index issues **one** identifier per email, so all of a personal user's
+host39 cards carry that same identifier; only the card in `registry_url` is
+the one the index resolves to.
 
 ---
 
@@ -233,7 +339,8 @@ field (a checkbox in the dashboard forms).
 - When enabled, host39 signs and sends a `card-published` webhook
   (HMAC-SHA256 over the JSON body, `X-Nanda-Signature` header) to
   AgentStatus's partner API, identifying the card by its NANDA URN
-  (`urn:ai:domain:<domain>:agent:<slug>` or `urn:ai:email:<email>:agent:<slug>`)
+  (`urn:air:<domain>:agent:<slug>` or `urn:air:host39.org:personal:<email>`;
+  cards enabled before the urn:air switch keep their stored `urn:ai:*` locator)
   and its own public card URL (`agent_card_url`) — **not** the card's
   `runtime_url`. AgentStatus fetches the card from `agent_card_url` and reads
   `runtime_url` from inside it to know what to probe.
@@ -293,7 +400,14 @@ CREATE TABLE users (
   password_hash VARCHAR(255) NOT NULL,
   handle        VARCHAR(32) UNIQUE NOT NULL,  -- used in public URLs
   identity_type VARCHAR(20) NOT NULL DEFAULT 'email' CHECK (identity_type IN ('domain','email')),
-  domain        VARCHAR(255) UNIQUE,           -- SMB users only
+  domain        VARCHAR(255),                  -- SMB users only, lowercase; unique among verified
+  email_verified  BOOLEAN NOT NULL DEFAULT FALSE,  -- emailed link; gates public serving
+  email_verification_token_hash CHAR(64),        -- SHA-256 of the emailed token (single-use)
+  email_verification_expires_at TIMESTAMPTZ,     -- token valid 24h
+  email_verification_sent_at    TIMESTAMPTZ,     -- resend cooldown (60s)
+  domain_verified BOOLEAN NOT NULL DEFAULT FALSE,  -- DNS TXT proof; gates /<domain>/ serving
+  domain_challenge            VARCHAR(128),
+  domain_challenge_expires_at TIMESTAMPTZ,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -315,7 +429,7 @@ CREATE TABLE agent_cards (
   status         VARCHAR(20) NOT NULL DEFAULT 'active',
   is_public      BOOLEAN NOT NULL DEFAULT TRUE,
   monitoring_enabled  BOOLEAN NOT NULL DEFAULT FALSE,  -- AgentStatus reliability monitoring
-  agentstatus_locator VARCHAR(512),                    -- NANDA URN, set once monitoring is enabled
+  agentstatus_locator VARCHAR(512),                    -- NANDA identifier (urn:air:…), set once monitoring is enabled
   reliability         JSONB,                            -- cached AgentStatus response
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -333,7 +447,11 @@ CREATE TABLE agent_cards (
 |--------|------|------|-------------|
 | `POST` | `/auth/register` | `{ email, password, handle, display_name?, identity_type?, domain? }` | Create account |
 | `POST` | `/auth/login` | `{ email, password }` | Sign in |
-| `GET`  | `/auth/me` | — | Current user |
+| `GET`  | `/auth/me` | — | Current user (incl. `email_verified`, `domain_verified`) |
+| `POST` | `/auth/verify-email` | `{ token }` | Verify email with the token from the emailed link (single-use, 24h) |
+| `POST` | `/auth/resend-verification` | — | Email a new link (JWT; 60s cooldown → 429 with `retry_after_seconds`; 502 if sending fails) |
+| `POST` | `/auth/domain-challenge` | — | Issue a DNS TXT challenge for your SMB domain (JWT) |
+| `POST` | `/auth/verify-domain` | — | Check the TXT record and mark the domain verified (JWT) |
 
 **handle** must match `^[a-z0-9][a-z0-9-]{1,31}$` and is used in your public card URLs.
 
@@ -347,6 +465,8 @@ CREATE TABLE agent_cards (
 | `PUT`    | `/cards/:id` | Update a card |
 | `DELETE` | `/cards/:id` | Delete a card |
 
+`runtime_url` and `provider_url` must be absolute `https://` URLs.
+
 Cards accept an optional `monitoring_enabled` boolean in the create/update
 body; responses include `monitoring_enabled`, `agentstatus_locator`, and
 `reliability` (see [Agent Reliability Monitoring](#agent-reliability-monitoring-agentstatus)).
@@ -355,8 +475,8 @@ body; responses include `monitoring_enabled`, `agentstatus_locator`, and
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/personal/:handle/:slug.json` | Personal user card |
-| `GET` | `/:domain/:slug.json` | SMB domain user card |
+| `GET` | `/personal/:handle/:slug.json` | Personal user card (verified email only) |
+| `GET` | `/:domain/:slug.json` | SMB domain user card (verified email and domain only) |
 | `GET` | `/.well-known/ai-catalog.json` | Aggregate catalog of all active cards |
 
 All public card endpoints respond with `Content-Type: application/a2a-agent-card+json`.

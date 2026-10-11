@@ -87,10 +87,44 @@ export interface Me {
   display_name: string | null;
   identity_type: "domain" | "email";
   domain: string | null;
+  /** Cards are only publicly served once the emailed link has been clicked. */
+  email_verified: boolean;
+  /** SMB cards are only publicly served once the domain is verified via DNS TXT. */
+  domain_verified: boolean;
 }
 
 export async function getMe(): Promise<Me> {
   return request<Me>("/auth/me");
+}
+
+// Email verification
+export async function verifyEmail(token: string): Promise<{ email_verified: boolean }> {
+  return request<{ email_verified: boolean }>("/auth/verify-email", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+/** Throws ApiError 429 (payload.retry_after_seconds) during the cooldown, 502 if sending failed. */
+export async function resendVerification(): Promise<{ sent: boolean; retry_after_seconds: number }> {
+  return request<{ sent: boolean; retry_after_seconds: number }>("/auth/resend-verification", { method: "POST" });
+}
+
+// Domain ownership (SMB accounts)
+export interface DomainChallenge {
+  domain: string;
+  record_name: string;
+  record_type: "TXT";
+  record_value: string;
+  expires_at: string;
+}
+
+export async function requestDomainChallenge(): Promise<DomainChallenge> {
+  return request<DomainChallenge>("/auth/domain-challenge", { method: "POST" });
+}
+
+export async function verifyDomain(): Promise<{ domain: string; domain_verified: boolean }> {
+  return request<{ domain: string; domain_verified: boolean }>("/auth/verify-domain", { method: "POST" });
 }
 
 // Agent cards
@@ -178,12 +212,13 @@ export function getPublicUrl(
   identityType: "domain" | "email",
   domainOrEmail: string,
   slug: string,
-  handle?: string,
+  handle: string,
   baseUrl?: string
 ): string {
   const base = baseUrl ?? (process.env.NEXT_PUBLIC_HOST39_PUBLIC_BASE_URL ?? process.env.NEXT_PUBLIC_HOST39_API_URL ?? "http://localhost:3010");
   if (identityType === "domain") {
     return `${base}/${domainOrEmail}/${slug}.json`;
   }
-  return `${base}/personal/${handle ?? encodeURIComponent(domainOrEmail)}/${slug}.json`;
+  // Personal cards are served by handle (server: /personal/:handle/:slug.json), never by email.
+  return `${base}/personal/${handle}/${slug}.json`;
 }
